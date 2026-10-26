@@ -53,10 +53,9 @@ public:
     void windowResize();
     void swapObjects();
     void clearObjects();
-    void pushObject(std::unique_ptr<Object> obj);
+    void pushObject(std::unique_ptr<Object> obj, const VertexAttributes& attributes);
     void setOutline(bool enabled);
     void setShadows(bool enabled);
-    void setRaymarching(bool enabled);
     int setMaxDist(float newMaxDist);
     void setCamera(const Camera& newCamera);
     int subscribeKey(int componentIdx, int key);
@@ -78,6 +77,7 @@ private:
 
     std::vector<GpuObject> Objects_A{};
     std::vector<GpuObject> Objects_B{};
+    std::vector<GpuObject> objectsUpload{};
 
     std::vector<Vertex> Vertices_A{};
     std::vector<Vertex> Vertices_B{};
@@ -92,7 +92,6 @@ private:
 
     bool outlineEnabled = true;
     bool shadowsEnabled = true;
-    bool raymarchingEnabled = true;
     float maxDist = 50.0f;
     float epsilon = 0.0005f;
 

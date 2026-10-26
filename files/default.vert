@@ -2,9 +2,11 @@
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in float aAttached;
 layout (location = 2) in int aObjectIdx;
+layout (location = 3) in float aPolygonal;
 
 out vec3 fragPos;
 flat out int fragObjectIdx;
+flat out float fragPolygonal;
 invariant gl_Position;
 
 uniform vec3 iCameraPos;
@@ -38,6 +40,7 @@ void main() {
 
     fragPos = relPos;
     fragObjectIdx = aObjectIdx;
+    fragPolygonal = aPolygonal;
 
     float minRes = min(iResolution.x, iResolution.y);
     float A = 2.0 * minRes / iResolution.x;

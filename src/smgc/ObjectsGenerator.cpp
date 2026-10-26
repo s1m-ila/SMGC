@@ -211,16 +211,39 @@ float ObjectBoundingRadius(const Object& obj) {
         default: return -1.0f;
     }
 }
-GpuObject ToGpuObject(const Object& obj) {
+GpuObject ToGpuObject(const Object& obj, const VertexAttributes& attributes) {
     const glm::mat3 invRot = glm::transpose(ObjectRotation(glm::vec3(obj.data4)));
     return {obj.data1, obj.data2, obj.data3, {
-        glm::vec4(invRot[0], 0.0f),
-        glm::vec4(invRot[1], 0.0f),
+        glm::vec4(invRot[0], attributes.polygonal ? 1.0f : 0.0f),
+        glm::vec4(invRot[1], attributes.attached ? 1.0f : 0.0f),
         glm::vec4(invRot[2], 0.0f),
     }};
 }
-void SetObjectIdx(std::vector<Vertex>& vertices, size_t vertexStart, GLint objectIdx) {
-    for (size_t i = vertexStart; i < vertices.size(); i++) vertices[i].objectIdx = objectIdx;
+glm::mat3 CameraRotation(const glm::vec3& deg) {
+    const glm::vec3 r = glm::radians(deg);
+    float cp = std::cos(r.x), sp = std::sin(r.x);
+    float cy = std::cos(r.y), sy = std::sin(r.y);
+    float cr = std::cos(r.z), sr = std::sin(r.z);
+
+    glm::mat3 Rx({1.0f, 0.0f, 0.0f}, {0.0f, cp, sp}, {0.0f, -sp, cp});
+    glm::mat3 Ry({cy, 0.0f, -sy}, {0.0f, 1.0f, 0.0f}, {sy, 0.0f, cy});
+    glm::mat3 Rz({cr, sr, 0.0f}, {-sr, cr, 0.0f}, {0.0f, 0.0f, 1.0f});
+
+    return Rz * Rx * Ry;
+}
+GpuObject AttachedToWorld(const GpuObject& obj, const glm::vec3& cameraPos, const glm::mat3& cameraRot) {
+    GpuObject world = obj;
+    const glm::vec3 pos = cameraPos + glm::transpose(cameraRot) * glm::vec3(obj.data1.y, obj.data1.z, obj.data1.w);
+    world.data1 = glm::vec4(obj.data1.x, pos);
+    const glm::mat3 invRot = glm::mat3(glm::vec3(obj.invRot[0]), glm::vec3(obj.invRot[1]), glm::vec3(obj.invRot[2])) * cameraRot;
+    for (int i = 0; i < 3; i++) world.invRot[i] = glm::vec4(invRot[i], obj.invRot[i].w);
+    return world;
+}
+void SetObjectAttributes(std::vector<Vertex>& vertices, size_t vertexStart, GLint objectIdx, float polygonal) {
+    for (size_t i = vertexStart; i < vertices.size(); i++) {
+        vertices[i].objectIdx = objectIdx;
+        vertices[i].polygonal = polygonal;
+    }
 }
 void CullFarTriangles(std::vector<Vertex>& vertices, std::vector<GLuint>& indices, size_t vertexStart, size_t indexStart, const glm::vec3& center, float maxDist) {
     const float maxDist2 = maxDist * maxDist;

@@ -10,7 +10,7 @@ bool taskIs_SmgcClearObjects(uint32_t taskIdx) {
     return taskIdx == 1;
 }
 
-task_SmgcPushObject::task_SmgcPushObject(std::unique_ptr<Object> t_obj): BaseTask(2) {
+task_SmgcPushObject::task_SmgcPushObject(std::unique_ptr<Object> t_obj, const VertexAttributes& t_attributes): BaseTask(2), attributes(t_attributes) {
     obj = std::move(t_obj);
 }
 bool taskIs_SmgcPushObject(uint32_t taskIdx) {
@@ -50,9 +50,4 @@ bool taskIs_SmgcKeyState(uint32_t taskIdx) {
 task_SmgcSetShadows::task_SmgcSetShadows(bool t_enabled): BaseTask(9), enabled(t_enabled) {}
 bool taskIs_SmgcSetShadows(uint32_t taskIdx) {
     return taskIdx == 9;
-}
-
-task_SmgcSetRaymarching::task_SmgcSetRaymarching(bool t_enabled): BaseTask(10), enabled(t_enabled) {}
-bool taskIs_SmgcSetRaymarching(uint32_t taskIdx) {
-    return taskIdx == 10;
 }

@@ -6,6 +6,7 @@
 // Object class
 #include "ObjectsBuffer.h"
 #include "Camera.h"
+#include "VBO.h"
 
 // For unique_ptr
 #include <memory>
@@ -24,8 +25,9 @@ bool taskIs_SmgcClearObjects(uint32_t taskIdx);
 
 class task_SmgcPushObject: public BaseTask {
 public:
-    task_SmgcPushObject(std::unique_ptr<Object> t_obj);
+    task_SmgcPushObject(std::unique_ptr<Object> t_obj, const VertexAttributes& t_attributes = {});
     std::unique_ptr<Object> obj = nullptr;
+    VertexAttributes attributes{};
 };
 bool taskIs_SmgcPushObject(uint32_t taskIdx);
 
@@ -78,10 +80,3 @@ public:
     bool enabled = true;
 };
 bool taskIs_SmgcSetShadows(uint32_t taskIdx);
-
-class task_SmgcSetRaymarching: public BaseTask {
-public:
-    task_SmgcSetRaymarching(bool t_enabled);
-    bool enabled = true;
-};
-bool taskIs_SmgcSetRaymarching(uint32_t taskIdx);

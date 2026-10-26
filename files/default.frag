@@ -2,6 +2,7 @@
 layout(early_fragment_tests) in;
 in vec3 fragPos; // Интерполированная позиция фрагмента
 flat in int fragObjectIdx;
+flat in float fragPolygonal;
 out vec4 fragColor;
 
 #define ITERATIONS 1000
@@ -15,13 +16,12 @@ uniform vec3 iCameraRot;
 uniform float iOutline;
 uniform float iMaxDist;
 uniform float iShadows;
-uniform float iRaymarch;
 
 struct Object {
     vec4 data1;
     vec4 data2;
     vec4 data3;
-    mat3 invRot;
+    vec4 invRot[3];
 };
 
 layout(std430, binding = 0) buffer ObjectsBuffer {
@@ -182,8 +182,9 @@ mapResult map(vec3 p, bool simple) {
 
     for (int i = 0; i < ObjectsData.items.length(); ++i) {
         Object obj = ObjectsData.items[i];
+        if (obj.invRot[0].w > 0.5) continue;
         int type = int(round(obj.data1.x));
-        vec3 lp = obj.invRot * (p - obj.data1.yzw);
+        vec3 lp = mat3(obj.invRot[0].xyz, obj.invRot[1].xyz, obj.invRot[2].xyz) * (p - obj.data1.yzw);
         float dx = iMaxDist;
         int a_type = abs(type);
         bool fractal_x = type < 0;
@@ -315,11 +316,11 @@ void main() {
     }
 
     vec3 col;
-    if (iRaymarch > 0.5) {
+    if (fragPolygonal > 0.5) {
+        col = polygonColor();
+    } else {
         vec3 rd = normalize(fragPos);
         col = raymarch(iCameraPos, rd, length(fragPos));
-    } else {
-        col = polygonColor();
     }
 
     // Дизеринг

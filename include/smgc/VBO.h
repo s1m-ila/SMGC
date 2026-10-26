@@ -8,6 +8,12 @@ struct Vertex {
     glm::vec3 pos;
     float attached; // 0.0 = world, 1.0 = camera
     GLint objectIdx = -1;
+    float polygonal = 0.0f;
+};
+
+struct VertexAttributes {
+    bool polygonal = false;
+    bool attached = false;
 };
 
 class VBO {
