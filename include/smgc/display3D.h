@@ -34,6 +34,9 @@
 
 // Task definitions
 #include "taskDefinitions.h"
+#include "taskDefinitions2D.h"
+
+#include "Layer2D.h"
 
 // Objects Generator
 #include "ObjectsGenerator.h"
@@ -55,6 +58,8 @@ public:
     void setShadows(bool enabled);
     int setMaxDist(float newMaxDist);
     void setCamera(const Camera& newCamera);
+    int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align);
+    int setFont(const std::string& path);
     int subscribeKey(int componentIdx, int key);
     int unsubscribeKey(int componentIdx, int key);
     void sendKeyStates();
@@ -82,6 +87,8 @@ private:
     std::vector<GLuint> Indices_B{};
 
     std::unique_ptr<ObjectsBuffer> objectsBuffer = nullptr;
+
+    Layer2D overlay{};
 
     Camera camera{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
 

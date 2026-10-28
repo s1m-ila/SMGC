@@ -70,3 +70,68 @@ void Line2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const
         a - dir * h + normal * h,
     }, a, color, glm::vec4(ab, halfThickness, 0.0f), Shape2D::Line);
 }
+
+static uint32_t NextCodepoint(const std::string& text, size_t& i) {
+    const unsigned char lead = static_cast<unsigned char>(text[i++]);
+    if (lead < 0x80) return lead;
+    const int extra = (lead & 0xE0) == 0xC0 ? 1 : (lead & 0xF0) == 0xE0 ? 2 : (lead & 0xF8) == 0xF0 ? 3 : -1;
+    if (extra < 0) return 0xFFFD;
+    uint32_t codepoint = lead & (0x3F >> extra);
+    for (int k = 0; k < extra; k++) {
+        if (i >= text.size() || (static_cast<unsigned char>(text[i]) & 0xC0) != 0x80) return 0xFFFD;
+        codepoint = (codepoint << 6) | (static_cast<unsigned char>(text[i++]) & 0x3F);
+    }
+    return codepoint;
+}
+
+static void TextLine2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const Font& font, const std::vector<const Glyph*>& line, float x, float baseline, float scale, const glm::vec4& color, const glm::vec4& params, TextAlign align) {
+    float width = 0.0f;
+    for (size_t k = 0; k < line.size(); k++) {
+        if (k > 0) width += font.Kerning(*line[k - 1], *line[k]);
+        width += line[k]->advance;
+    }
+    if (align == TextAlign::Center) x -= width * scale * 0.5f;
+    else if (align == TextAlign::Right) x -= width * scale;
+
+    for (size_t k = 0; k < line.size(); k++) {
+        const Glyph& glyph = *line[k];
+        if (k > 0) x += font.Kerning(*line[k - 1], glyph) * scale;
+        if (glyph.size.x > 0.0f && glyph.size.y > 0.0f) {
+            const glm::vec2 topLeft(x + glyph.offset.x * scale, baseline + glyph.offset.y * scale);
+            const glm::vec2 bottomRight = topLeft + glyph.size * scale;
+            const GLuint base = static_cast<GLuint>(vertices.size());
+            const GLint shape = static_cast<GLint>(Shape2D::Text);
+            vertices.push_back({topLeft,                              glyph.uvMin,                              color, params, shape});
+            vertices.push_back({{bottomRight.x, topLeft.y},           {glyph.uvMax.x, glyph.uvMin.y},           color, params, shape});
+            vertices.push_back({bottomRight,                          glyph.uvMax,                              color, params, shape});
+            vertices.push_back({{topLeft.x, bottomRight.y},           {glyph.uvMin.x, glyph.uvMax.y},           color, params, shape});
+            indices.insert(indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
+        }
+        x += glyph.advance * scale;
+    }
+}
+
+void Text2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const Font& font, const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align) {
+    if (!font.IsLoaded()) return;
+    const float scale = size / font.BakeSize();
+    const glm::vec4 params(font.DistanceScale() * scale, 0.0f, 0.0f, 0.0f);
+    const Glyph* fallback = font.FindGlyph('?');
+
+    std::vector<const Glyph*> line;
+    float baseline = pos.y + font.Ascent() * scale;
+    size_t i = 0;
+    while (true) {
+        line.clear();
+        while (i < text.size() && text[i] != '\n') {
+            const uint32_t codepoint = NextCodepoint(text, i);
+            if (codepoint == '\r') continue;
+            const Glyph* glyph = font.FindGlyph(codepoint);
+            if (!glyph) glyph = fallback;
+            if (glyph) line.push_back(glyph);
+        }
+        TextLine2D(vertices, indices, font, line, pos.x, baseline, scale, color, params, align);
+        if (i >= text.size()) break;
+        i++;
+        baseline += font.LineHeight() * scale;
+    }
+}

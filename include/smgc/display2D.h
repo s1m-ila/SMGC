@@ -12,17 +12,12 @@
 
 #include <glm/glm.hpp>
 
-#include "shaderClass.h"
-#include "VAO.h"
-#include "VBO.h"
-#include "EBO.h"
+#include "Layer2D.h"
 
 #include "paletts.h"
 
 #include "taskDefinitions.h"
 #include "taskDefinitions2D.h"
-
-#include "Shapes2D.h"
 
 #include "KeySubscription.h"
 
@@ -40,6 +35,8 @@ public:
     int drawRoundedRect(const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color);
     int drawRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color);
     int drawLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color);
+    int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align);
+    int setFont(const std::string& path);
     void setOutline(bool enabled);
     int subscribeKey(int componentIdx, int key);
     int unsubscribeKey(int componentIdx, int key);
@@ -53,16 +50,7 @@ private:
 
     GLFWwindow* window = nullptr;
 
-    std::unique_ptr<Shader> shaderProgram = nullptr;
-
-    std::unique_ptr<VAO> vao = nullptr;
-    std::unique_ptr<VBO> vbo = nullptr;
-    std::unique_ptr<EBO> ebo = nullptr;
-
-    std::vector<Vertex2D> Vertices_A{};
-    std::vector<Vertex2D> Vertices_B{};
-    std::vector<GLuint> Indices_A{};
-    std::vector<GLuint> Indices_B{};
+    Layer2D layer{};
 
     std::vector<KeySubscription> keySubscriptions{};
 

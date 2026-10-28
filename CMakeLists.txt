@@ -52,11 +52,18 @@ add_library(smgc_common STATIC
   src/smgc/ObjectsBuffer.cpp
   src/smgc/paletts.cpp
   src/smgc/taskDefinitions.cpp
+  src/smgc/taskDefinitions2D.cpp
+  src/smgc/Font.cpp
+  src/smgc/Shapes2D.cpp
+  src/smgc/Layer2D.cpp
 )
 add_library(smgc::common ALIAS smgc_common)
 
-target_include_directories(smgc_common PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+target_include_directories(smgc_common
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
 target_compile_features(smgc_common PUBLIC cxx_std_23)
 set_target_properties(smgc_common PROPERTIES CXX_EXTENSIONS OFF)
@@ -88,8 +95,6 @@ target_link_libraries(smgc_display3D
 
 # --- smgc::display2D ---
 add_library(smgc_display2D STATIC
-  src/smgc/Shapes2D.cpp
-  src/smgc/taskDefinitions2D.cpp
   src/smgc/display2D.cpp
 )
 add_library(smgc::display2D ALIAS smgc_display2D)
@@ -109,6 +114,7 @@ function(smgc_copy_files TARGET)
       "default.frag"
       "display2D.vert"
       "display2D.frag"
+      "DejaVuSans.ttf"
   )
 
   foreach(FILE ${SMGC_FILES})

@@ -4,6 +4,10 @@
 
 #include <glm/glm.hpp>
 
+#include <string>
+
+#include "Font.h"
+
 class task_SmgcDrawRect: public BaseTask {
 public:
     task_SmgcDrawRect(const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color);
@@ -70,3 +74,21 @@ public:
     glm::vec4 color{};
 };
 bool taskIs_SmgcDrawLine(uint32_t taskIdx);
+
+class task_SmgcDrawText: public BaseTask {
+public:
+    task_SmgcDrawText(const std::string& t_text, const glm::vec2& t_pos, float t_size, const glm::vec4& t_color, TextAlign t_align = TextAlign::Left);
+    std::string text{};
+    glm::vec2 pos{};
+    float size = 0.0f;
+    glm::vec4 color{};
+    TextAlign align = TextAlign::Left;
+};
+bool taskIs_SmgcDrawText(uint32_t taskIdx);
+
+class task_SmgcSetFont: public BaseTask {
+public:
+    task_SmgcSetFont(const std::string& t_path);
+    std::string path{};
+};
+bool taskIs_SmgcSetFont(uint32_t taskIdx);

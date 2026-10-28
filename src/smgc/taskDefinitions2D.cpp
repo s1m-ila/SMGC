@@ -34,3 +34,13 @@ task_SmgcDrawLine::task_SmgcDrawLine(const glm::vec2& t_a, const glm::vec2& t_b,
 bool taskIs_SmgcDrawLine(uint32_t taskIdx) {
     return taskIdx == 17;
 }
+
+task_SmgcDrawText::task_SmgcDrawText(const std::string& t_text, const glm::vec2& t_pos, float t_size, const glm::vec4& t_color, TextAlign t_align): BaseTask(18), text(t_text), pos(t_pos), size(t_size), color(t_color), align(t_align) {}
+bool taskIs_SmgcDrawText(uint32_t taskIdx) {
+    return taskIdx == 18;
+}
+
+task_SmgcSetFont::task_SmgcSetFont(const std::string& t_path): BaseTask(19), path(t_path) {}
+bool taskIs_SmgcSetFont(uint32_t taskIdx) {
+    return taskIdx == 19;
+}

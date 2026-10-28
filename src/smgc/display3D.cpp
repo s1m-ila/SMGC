@@ -26,6 +26,7 @@ int SMGC::init() {
         return -ENODEV;
     }
     glfwMakeContextCurrent(window);
+    glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
 
     glfwSetWindowUserPointer(window, this);  // привязываем this к окну
@@ -76,6 +77,9 @@ int SMGC::init() {
     vbo->Unbind();
     ebo->Unbind();
 
+    errorCode = overlay.init();
+    if (errorCode != 0) {std::cerr << getPrefix() << "Critical Error: overlay.init return error code " << std::to_string(errorCode) << std::endl; return errorCode;}
+
     clearObjects();
     swapObjects();
 
@@ -93,6 +97,8 @@ void SMGC::swapObjects() {
     vao->Unbind();
     vbo->Upload(Vertices_A);
     ebo->Upload(Indices_A);
+
+    overlay.swap();
 }
 void SMGC::clearObjects() {
     Objects_B.clear();
@@ -103,6 +109,8 @@ void SMGC::clearObjects() {
     AntiCube(Vertices_B, Indices_B, maxDist, 1.0f);
     SetObjectAttributes(Vertices_B, 0, -2, 0.0f);
     Plane(Vertices_B, Indices_B, camera.pos, maxDist, -1.0f, epsilon);
+
+    overlay.clear();
 }
 void SMGC::pushObject(std::unique_ptr<Object> obj, const VertexAttributes& attributes) {
     const glm::vec3 center = attributes.attached ? glm::vec3(0.0f) : camera.pos;
@@ -143,6 +151,19 @@ int SMGC::setMaxDist(float newMaxDist) {
 }
 void SMGC::setCamera(const Camera& newCamera) {
     camera = newCamera;
+}
+int SMGC::drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align) {
+    if (!std::isfinite(size) || size < 0.0f) {
+        std::cerr << getPrefix() << "Error in SMGC::drawText: invalid size " << std::to_string(size) << std::endl;
+        return -EINVAL;
+    }
+    overlay.pushText(text, pos, size, color, align);
+    return 0;
+}
+int SMGC::setFont(const std::string& path) {
+    int errorCode = overlay.setFont(path);
+    if (errorCode != 0) std::cerr << getPrefix() << "Error in SMGC::setFont: cannot load \"" << path << "\", the previous font is kept" << std::endl;
+    return errorCode;
 }
 int SMGC::subscribeKey(int componentIdx, int key) {
     if (key < GLFW_KEY_SPACE || key > GLFW_KEY_LAST) {
@@ -227,6 +248,8 @@ int SMGC::draw() {
 
     vao->Unbind();
 
+    overlay.draw(windowWidth, windowHeight, outlineEnabled);
+
     return 0;
 }
 
@@ -252,6 +275,12 @@ int SMGC::processTask(std::unique_ptr<BaseTask> task) {
     } else if (taskIs_SmgcSetCamera(taskIdx)) {
         auto* typed = static_cast<task_SmgcSetCamera*>(task.get());
         setCamera(typed->camera);
+    } else if (taskIs_SmgcDrawText(taskIdx)) {
+        auto* typed = static_cast<task_SmgcDrawText*>(task.get());
+        return drawText(typed->text, typed->pos, typed->size, typed->color, typed->align);
+    } else if (taskIs_SmgcSetFont(taskIdx)) {
+        auto* typed = static_cast<task_SmgcSetFont*>(task.get());
+        return setFont(typed->path);
     } else if (taskIs_SmgcSubscribeKey(taskIdx)) {
         auto* typed = static_cast<task_SmgcSubscribeKey*>(task.get());
         return subscribeKey(task->getCreatorIdx(), typed->key);
@@ -289,6 +318,7 @@ void SMGC::death() {
     if (ebo) ebo->Delete();
     if (shaderProgram) shaderProgram->Delete();
     if (objectsBuffer) objectsBuffer->Delete();
+    overlay.destroy();
     if (window) glfwDestroyWindow(window);
     glfwTerminate();
     Core_stop();

@@ -3,7 +3,7 @@
 **SMGC** — компоненты графики на OpenGL для ядра [SMPB](https://github.com/s1m-ila/SMPB). Их два:
 
 - **`SMGC`** (3D) открывает окно, принимает от других компонентов сцену в виде списка SDF-объектов (шары, кубы, капсулы, фракталы) и рисует её **гибридным** способом: полигональные прокси-меши отсекают пустое пространство, а на их поверхности запускается ray-marching, который и даёт итоговую картинку.
-- **`SMGC2D`** (2D) рисует плоские фигуры с неподвижной камерой: прямоугольники, треугольники, круги, эллипсы, скруглённые прямоугольники, кольца и отрезки. Фигуры задаются задачами вида «нарисовать круг с таким центром и радиусом» в пиксельных координатах окна. Вся геометрия — полигоны, а скруглённые фигуры вырезаются из квадов фрагментным шейдером.
+- **`SMGC2D`** (2D) рисует плоские фигуры с неподвижной камерой: прямоугольники, треугольники, круги, эллипсы, скруглённые прямоугольники, кольца и отрезки. Фигуры задаются задачами вида «нарисовать круг с таким центром и радиусом» в пиксельных координатах окна. Вся геометрия — полигоны, а скруглённые фигуры вырезаются из квадов фрагментным шейдером. Ещё он выводит текст в UTF-8 (латиница и кириллица) шрифтом TTF.
 
 ## Содержание
 
@@ -21,9 +21,12 @@
   - [Гибридный рендеринг](#гибридный-рендеринг)
   - [Шейдеры](#шейдеры)
   - [2D-рендерер SMGC2D](#2d-рендерер-smgc2d)
+  - [Текст](#текст)
 - [Справочник по классам](#справочник-по-классам)
   - [SMGC](#smgc-1)
   - [SMGC2D](#smgc2d)
+  - [Layer2D](#layer2d)
+  - [Font](#font)
   - [Задачи taskDefinitions.h](#задачи-taskdefinitionsh)
   - [Задачи taskDefinitions2D.h](#задачи-taskdefinitions2dh)
   - [Shader](#shader)
@@ -51,6 +54,7 @@
 - Камера и дальность прорисовки задаются задачами.
 - Подписка на клавиши: SMGC каждый тик сообщает подписчикам, нажаты ли их клавиши. Свободной камерой в примере управляет компонент `Scene3D`.
 - 2D-компонент `SMGC2D`: 7 базовых фигур, координаты в пикселях от левого верхнего угла, прозрачность через альфа-канал, сглаженные края у скруглённых фигур. Каркас и подписка на клавиши работают так же, как в 3D.
+- Текст: строка UTF-8 с латиницей, кириллицей и типографскими знаками, любой размер, перенос строк через `\n`, выравнивание влево, по центру или вправо. Глифы хранятся в SDF-атласе, поэтому текст остаётся чётким и на 12, и на 100 пикселях. Шрифт по умолчанию — DejaVu Sans, его можно сменить задачей. В `SMGC2D` текст рисуется вместе с фигурами, в `SMGC` — поверх 3D-сцены как HUD.
 - Косинусные палитры `PaletteCosinka` / `PaletteCosinka2` для красивых цветов.
 - Собирается как статические библиотеки `smgc::display3D` и `smgc::display2D` с общей частью `smgc::common` и подключается к другим CMake-проектам через `add_subdirectory` или `FetchContent`.
 - В примере 3D- или 2D-сцена выбирается одним дефайном `SMGC_EXAMPLE_DIMENSION`.
@@ -65,7 +69,7 @@
 - GLFW 3, GLM и OpenGL (GLVND), установленные в системе: они ищутся через `find_package`
 - Видеокарта и драйвер с поддержкой GLSL 4.60: шейдеры начинаются с `#version 460 core`
 
-glad лежит в `third_party/glad` и собирается вместе с проектом. smpb скачивается автоматически (см. ниже).
+glad лежит в `third_party/glad` и собирается вместе с проектом, растеризатор шрифтов stb_truetype — в `third_party/stb`. smpb скачивается автоматически (см. ниже).
 
 Все зависимости описаны в `shell.nix`, поэтому на NixOS или с установленным Nix достаточно зайти в окружение:
 
@@ -84,12 +88,12 @@ cmake --build build
 
 | Цель | Тип | Результат | Описание |
 |------|-----|-----------|----------|
-| `smgc_common` (псевдоним `smgc::common`) | статическая библиотека | `libsmgc_common.a` | Общая часть обоих рендереров: `Shader`, `VAO`, `VBO`, `EBO`, `ObjectsBuffer`, палитры и задачи `taskDefinitions.h`. Публичные заголовки лежат в `include/smgc/`. smpb, glad, GLFW и GLM подключены как `PUBLIC`-зависимости, поэтому их заголовки и требование C++23 передаются всем, кто линкуется с библиотекой. |
-| `smgc_display3D` (псевдоним `smgc::display3D`) | статическая библиотека | `libsmgc_display3D.a` | 3D-компонент `SMGC` и генератор прокси-мешей `ObjectsGenerator`. Подключается как `<smgc/display3D.h>`. Линкуется с `smgc::common` как `PUBLIC`. |
-| `smgc_display2D` (псевдоним `smgc::display2D`) | статическая библиотека | `libsmgc_display2D.a` | 2D-компонент `SMGC2D`, генератор фигур `Shapes2D` и задачи `taskDefinitions2D.h`. Подключается как `<smgc/display2D.h>`. Линкуется с `smgc::common` как `PUBLIC`. |
+| `smgc_common` (псевдоним `smgc::common`) | статическая библиотека | `libsmgc_common.a` | Общая часть обоих рендереров: `Shader`, `VAO`, `VBO`, `EBO`, `ObjectsBuffer`, палитры, задачи `taskDefinitions.h` и `taskDefinitions2D.h`, генератор фигур `Shapes2D`, шрифт `Font` (stb_truetype собирается внутри него) и 2D-слой `Layer2D`. Публичные заголовки лежат в `include/smgc/`. smpb, glad, GLFW и GLM подключены как `PUBLIC`-зависимости, поэтому их заголовки и требование C++23 передаются всем, кто линкуется с библиотекой. |
+| `smgc_display3D` (псевдоним `smgc::display3D`) | статическая библиотека | `libsmgc_display3D.a` | 3D-компонент `SMGC` и генератор прокси-мешей `ObjectsGenerator`. Текст поверх сцены `SMGC` рисует через `Layer2D` из общей части. Подключается как `<smgc/display3D.h>`. Линкуется с `smgc::common` как `PUBLIC`. |
+| `smgc_display2D` (псевдоним `smgc::display2D`) | статическая библиотека | `libsmgc_display2D.a` | 2D-компонент `SMGC2D`. Подключается как `<smgc/display2D.h>`. Линкуется с `smgc::common` как `PUBLIC`. |
 | `glad` | статическая библиотека | `libglad.a` | Загрузчик функций OpenGL из `third_party/glad`. Создаётся, только если цели `glad` ещё нет. |
 | `smpb_core` (псевдоним `smpb::core`) | статическая библиотека | `libsmpb_core.a` | Ядро SMPB. Скачивается через `FetchContent` из [github.com/s1m-ila/SMPB](https://github.com/s1m-ila/SMPB), только если цели `smpb::core` ещё нет. |
-| `smgc` | программа | `smgc`, `files/default.vert`, `files/default.frag`, `files/display2D.vert`, `files/display2D.frag`, `files/core.config` | Пример из `example/`, слинкованный с `smgc::display3D` и `smgc::display2D`. Какая сцена запустится, задаёт `SMGC_EXAMPLE_DIMENSION` в `example/main.cpp` (см. [Запуск](#запуск)). Собирается, только если включена опция `SMGC_BUILD_EXAMPLE`. После сборки шейдеры и `core.config` копируются из `files/` репозитория в папку `files/` рядом с программой. |
+| `smgc` | программа | `smgc`, `files/default.vert`, `files/default.frag`, `files/display2D.vert`, `files/display2D.frag`, `files/DejaVuSans.ttf`, `files/core.config` | Пример из `example/`, слинкованный с `smgc::display3D` и `smgc::display2D`. Какая сцена запустится, задаёт `SMGC_EXAMPLE_DIMENSION` в `example/main.cpp` (см. [Запуск](#запуск)). Собирается, только если включена опция `SMGC_BUILD_EXAMPLE`. После сборки шейдеры, шрифт и `core.config` копируются из `files/` репозитория в папку `files/` рядом с программой. |
 
 Если `CMAKE_BUILD_TYPE` не задан, по умолчанию используется `Release`. В `Release` включается межмодульная оптимизация (LTO), если компилятор её поддерживает. Тип сборки и LTO настраиваются только тогда, когда smgc собирается как самостоятельный проект. Внутри другого проекта эти настройки берутся из него.
 
@@ -168,7 +172,7 @@ smgc_copy_files(myapp)
 
 ### Функция `smgc_copy_files`
 
-`smgc_copy_files(<цель>)` добавляет к цели шаг `POST_BUILD`, который копирует `default.vert`, `default.frag`, `display2D.vert` и `display2D.frag` из `files/` репозитория smgc в папку `files/` рядом с собранной программой. Без шейдеров компоненты `SMGC` и `SMGC2D` не запустятся. `core.config` эта функция не копирует: о нём заботится сам проект.
+`smgc_copy_files(<цель>)` добавляет к цели шаг `POST_BUILD`, который копирует `default.vert`, `default.frag`, `display2D.vert`, `display2D.frag` и `DejaVuSans.ttf` из `files/` репозитория smgc в папку `files/` рядом с собранной программой. Без этих файлов компоненты `SMGC` и `SMGC2D` не запустятся: оба загружают 2D-шейдеры и шрифт для текста. `core.config` эта функция не копирует: о нём заботится сам проект.
 
 ### Своя версия smpb или glad
 
@@ -206,7 +210,7 @@ cd build
 
 Обе сцены компилируются всегда, после смены значения нужно пересобрать программу.
 
-Шейдеры 3D читаются из `files/default.vert` и `files/default.frag`, шейдеры 2D — из `files/display2D.vert` и `files/display2D.frag`, а конфигурация smpb — из `files/core.config`. Все пути отсчитываются от **текущей рабочей папки**, поэтому программа запускается из папки сборки. Файлы копируются туда командой `copy_if_different` при сборке программы `smgc`. Если изменился только шейдер в `files/` репозитория, копия в папке сборки остаётся старой до следующей пересборки `smgc`, а сам шейдер подхватывается только после перезапуска.
+Шейдеры 3D читаются из `files/default.vert` и `files/default.frag`, шейдеры 2D — из `files/display2D.vert` и `files/display2D.frag`, шрифт — из `files/DejaVuSans.ttf`, а конфигурация smpb — из `files/core.config`. Все пути отсчитываются от **текущей рабочей папки**, поэтому программа запускается из папки сборки. Файлы копируются туда командой `copy_if_different` при сборке программы `smgc`. Если изменился только шейдер в `files/` репозитория, копия в папке сборки остаётся старой до следующей пересборки `smgc`, а сам шейдер подхватывается только после перезапуска.
 
 Открывается окно `SMGC` или `SMGC2D` размером 800×800, его можно растягивать. При старте в лог выводятся версия OpenGL и полный текст обоих шейдеров. Программа работает, пока окно не закроют: тогда компонент рендера вызывает `Core_stop()`. Остановить её можно и через `Ctrl+C` или `SIGTERM`, это обрабатывает ядро smpb.
 
@@ -230,11 +234,11 @@ cd build
 
 Скорость по умолчанию: 3 единицы в секунду и 90° в секунду. Шаг считается как `скорость / TPS`, поэтому скорость камеры не зависит от TPS. Камера стартует в начале координат и смотрит вдоль оси +Z, пол находится на высоте y = −1.
 
-В режиме отладки ядра на каждом тике в лог выводятся `camera.pos` и `camera.rot`.
+В режиме отладки ядра на каждом тике в лог выводятся `camera.pos` и `camera.rot`. В левом верхнем углу окна `Scene3D` выводит текстом позицию и углы камеры и текущую скорость.
 
 ### 2D: игрок (`Scene2D`)
 
-`Scene2D` каждый тик рисует все 2D-фигуры с анимированными размерами и цветами, полупрозрачный прямоугольник поверх круга и белый круг-«игрок» с кольцом вокруг. Игрок рисуется последним, поэтому он всегда сверху.
+`Scene2D` каждый тик рисует все 2D-фигуры с анимированными размерами и цветами, полупрозрачный прямоугольник поверх круга и белый круг-«игрок» с кольцом вокруг. Игрок рисуется последним, поэтому он всегда сверху. Текстом выводятся заголовок, подписи под фигурами (по центру), подсказка по клавишам (вправо, 3 строки), номер тика и позиция игрока (влево) и пульсирующее «Привет!».
 
 | Клавиша | Действие |
 |---------|----------|
@@ -297,6 +301,8 @@ LOAD_DLL Base/Userlib.dll
 | `task_SmgcSetShadows` | `9` | `bool enabled` | Включает или выключает тени. По умолчанию включены |
 | `task_SmgcSetMaxDist` | `4` | `float maxDist` | Задаёт дальность прорисовки. Значение должно быть конечным и больше 0, иначе возвращается `-EINVAL` |
 | `task_SmgcSetCamera` | `5` | `Camera camera` | Задаёт позицию и углы камеры |
+| `task_SmgcDrawText` | `18` | `std::string text`, `glm::vec2 pos`, `float size`, `glm::vec4 color`, `TextAlign align` | Добавляет текст в HUD поверх сцены (см. [Текст](#текст)) |
+| `task_SmgcSetFont` | `19` | `std::string path` | Загружает другой шрифт TTF для HUD |
 | `task_SmgcSubscribeKey` | `6` | `int key` | Подписывает отправителя на клавишу |
 | `task_SmgcUnsubscribeKey` | `7` | `int key` | Отписывает отправителя от клавиши |
 
@@ -491,6 +497,8 @@ Uniform-переменные, которые `SMGC` задаёт каждый к
 | `task_SmgcDrawRoundedRect` | `15` | `glm::vec2 pos`, `glm::vec2 size`, `float cornerRadius`, `glm::vec4 color` | Скруглённый прямоугольник, `pos` — левый верхний угол. Радиус скругления ограничивается половиной меньшей стороны |
 | `task_SmgcDrawRing` | `16` | `glm::vec2 center`, `float radius`, `float thickness`, `glm::vec4 color` | Кольцо: `radius` — внешний радиус, `thickness` — толщина внутрь. Толщина ограничивается радиусом, при `thickness = radius` получается круг |
 | `task_SmgcDrawLine` | `17` | `glm::vec2 a, b`, `float thickness`, `glm::vec4 color` | Отрезок от `a` до `b` со скруглёнными концами. При `thickness = 0` рисуется сглаженная линия толщиной около 1 пикселя |
+| `task_SmgcDrawText` | `18` | `std::string text`, `glm::vec2 pos`, `float size`, `glm::vec4 color`, `TextAlign align = TextAlign::Left` | Текст, см. [Текст](#текст) |
+| `task_SmgcSetFont` | `19` | `std::string path` | Загружает другой шрифт TTF. Если файл не открылся или это не TTF, возвращает ошибку и оставляет прежний шрифт |
 
 Размеры, радиусы и толщины должны быть конечными и не меньше 0. Иначе задача возвращает `-EINVAL`, пишет ошибку в лог, и фигура не добавляется.
 
@@ -511,7 +519,8 @@ sendTask(std::make_unique<task_SmgcSwapObjects>(), "SMGC2D");
 - **Полигоны.** Прямоугольник (2 треугольника) и треугольник рисуются как есть, сплошным цветом.
 - **SDF-фигуры.** Круг, эллипс, скруглённый прямоугольник, кольцо и отрезок рисуются квадом, который охватывает фигуру с запасом в 1 пиксель. Фрагментный шейдер считает расстояние со знаком `d` от пикселя до края фигуры в пикселях и покрытие `clamp(0.5 - d, 0, 1)`: внутри фигуры оно равно 1, на краю плавно спадает до 0 — так получается сглаживание. Пиксели с нулевым покрытием отбрасываются (`discard`), у остальных покрытие умножается на альфа-канал цвета.
 - **Отрезок** строится квадом вдоль направления `b − a`, расширенным на половину толщины и 1 пиксель во все стороны, поэтому наклонные линии не требуют поворота.
-- **Каркас.** После заливки, если каркас включён, тот же набор треугольников рисуется в режиме `GL_LINE` оранжевым цветом. У SDF-фигур видны охватывающие квады и их диагонали, что удобно для отладки.
+- **Текст** — квад на каждый видимый глиф, его форма берётся из SDF-атласа шрифта (см. [Текст](#текст)).
+- **Каркас.** После заливки, если каркас включён, тот же набор треугольников рисуется в режиме `GL_LINE` оранжевым цветом. У SDF-фигур и глифов видны охватывающие квады и их диагонали, что удобно для отладки. Мелкий текст под каркасом читается плохо: его можно выключить задачей `task_SmgcSetOutline`.
 
 Кадр рисуется в 1 проход заливки и 1 проход каркаса, экран перед этим очищается в чёрный.
 
@@ -529,6 +538,7 @@ sendTask(std::make_unique<task_SmgcSwapObjects>(), "SMGC2D");
 | `SHAPE_ROUNDED_RECT` (3) | Расстояние до скруглённого бокса | `params.xy` — половина размера, `params.z` — радиус скругления |
 | `SHAPE_RING` (4) | `abs(length(p) − r + t/2) − t/2` | `params.x` — внешний радиус, `params.y` — толщина |
 | `SHAPE_LINE` (5) | Расстояние до отрезка минус половина толщины | `params.xy` — вектор `b − a`, `params.z` — половина толщины |
+| `SHAPE_TEXT` (6) | `(TEXT_EDGE − texture(iFont, uv).r) · k` | `local` — координаты в атласе, `params.x` — `k`, перевод значения атласа в пиксели экрана |
 
 Значения `SHAPE_*` должны совпадать с `enum class Shape2D` в `Shapes2D.h`.
 
@@ -538,6 +548,7 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 |---------|-----|----------|
 | `iResolution` | `vec2` | Размер framebuffer в пикселях |
 | `iOutline` | `float` | `1` — оранжевый цвет (проход каркаса), `0` — заливка |
+| `iFont` | `sampler2D` | Атлас шрифта, текстурный блок 0 (значение по умолчанию, отдельно не задаётся) |
 
 Атрибуты вершин:
 
@@ -548,6 +559,48 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | 2 | `color` | `vec4` |
 | 3 | `params` | `vec4` |
 | 4 | `shape` | `int`, через `glVertexAttribIPointer` |
+
+### Текст
+
+Текст рисуют оба компонента одной и той же задачей:
+
+```cpp
+sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВторая строка", glm::vec2{400.0f, 20.0f}, 32.0f, glm::vec4{1.0f}, TextAlign::Center), "SMGC2D");
+```
+
+| Параметр | Значение |
+|----------|----------|
+| `text` | Строка в UTF-8. `\n` переносит строку, `\r` пропускается |
+| `pos` | Точка привязки в пикселях. `pos.y` — верх первой строки. `pos.x` — левый край, центр или правый край **каждой** строки, в зависимости от `align` |
+| `size` | Высота шрифта в пикселях: расстояние от верха самых высоких букв до низа самых длинных выносных. Межстрочный интервал берётся из шрифта (`ascent − descent + lineGap`), у DejaVu Sans он равен `size`. Должен быть конечным и не меньше 0, иначе `-EINVAL` |
+| `color` | Цвет RGBA, альфа-канал работает как у фигур |
+| `align` | `TextAlign::Left` (по умолчанию), `TextAlign::Center` или `TextAlign::Right` |
+
+**Символы.** В атлас при загрузке шрифта попадают диапазоны:
+
+| Диапазон | Что входит |
+|----------|------------|
+| U+0020–U+007E | ASCII |
+| U+00A0–U+00FF | Латиница-1: «», °, ±, ×, буквы с диакритикой |
+| U+0400–U+045F | Кириллица, включая Ё/ё |
+| U+2010–U+2027 | Дефисы и тире, кавычки „“ ‘’, •, … |
+| U+2030–U+203A | ‰, ′, ″, ‹ › |
+| U+20AC | € |
+| U+2116 | № |
+
+Символы вне этих диапазонов, символы, которых нет в шрифте, и неверные последовательности UTF-8 заменяются на `?`. Между парами букв применяется кернинг шрифта.
+
+**Как это работает.** `Font::Load` читает файл TTF и для каждого символа строит через stb_truetype SDF-битмап размером 48 пикселей с полем в 8 пикселей. Все битмапы укладываются в одну текстуру `GL_R8` шириной 1024 пикселя. Значение 128 в атласе — граница глифа, больше — внутри. `Text2D` раскладывает строку и добавляет на каждый видимый глиф квад с координатами атласа в `local`. Фрагментный шейдер переводит значение атласа в расстояние до края в пикселях экрана и считает покрытие так же, как у остальных SDF-фигур, поэтому текст сглажен на любом размере. Пробелы квадов не получают, а только сдвигают перо.
+
+**Шрифт.** При инициализации загружается `files/DejaVuSans.ttf`, без него компонент не запустится. Задача `task_SmgcSetFont` с путём к другому файлу TTF перестраивает атлас. Если загрузка не удалась, задача возвращает `-ENOENT` (файл не открылся) или `-EINVAL` (не TTF), а прежний шрифт остаётся. Текст, уже собранный в буферах A и B, хранит координаты старого атласа, поэтому шрифт лучше менять до `Clear`, а до следующего `Swap` текст на экране может выглядеть неверно.
+
+### Текст поверх 3D-сцены
+
+`SMGC` принимает `task_SmgcDrawText` и `task_SmgcSetFont` и рисует текст как HUD: в пикселях окна, поверх 3D-сцены, без теста глубины. Для этого у него есть свой `Layer2D` (`overlay`) с 2D-шейдерами и шрифтом:
+
+- `task_SmgcClearObjects` очищает и текст, `task_SmgcSwapObjects` показывает его вместе с новой сценой. Поэтому текст отправляется между `Clear` и `Swap`, как объекты;
+- текст рисуется в конце `draw()`, после каркаса. Каркас текста включается и выключается той же задачей `task_SmgcSetOutline`;
+- остальные 2D-фигуры `SMGC` пока не принимает.
 
 ## Справочник по классам
 
@@ -584,6 +637,7 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | `shaderProgram` | `std::unique_ptr<Shader>` | `nullptr` | Программа из `default.vert` и `default.frag` |
 | `vao`, `vbo`, `ebo` | `std::unique_ptr<VAO/VBO/EBO>` | `nullptr` | Буферы геометрии прокси-мешей |
 | `objectsBuffer` | `std::unique_ptr<ObjectsBuffer>` | `nullptr` | SSBO с объектами, `binding = 0` |
+| `overlay` | `Layer2D` | — | 2D-слой для текста поверх сцены |
 | `Objects_A`, `Objects_B` | `std::vector<GpuObject>` | пусто | Объекты для SSBO: A — на экране, B — собираемый. `attached` объекты хранятся в системе камеры |
 | `objectsUpload` | `std::vector<GpuObject>` | пусто | Копия `Objects_A`, где `attached` объекты переведены в мировые координаты. Её `draw()` загружает в SSBO |
 | `Vertices_A`, `Vertices_B` | `std::vector<Vertex>` | пусто | Вершины прокси-мешей |
@@ -594,29 +648,31 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | `shadowsEnabled` | `bool` | `true` | Считать ли тени |
 | `maxDist` | `float` | `50.0` | Дальность прорисовки и отсечения, размер `AntiCube` и пола |
 | `epsilon` | `float` | `0.0005` | Точность ray-marching и толщина прокси пола |
-| `windowWidth`, `windowHeight` | `int` | `800` | Размер окна, обновляется при растягивании |
+| `windowWidth`, `windowHeight` | `int` | `800` | Размер framebuffer. После создания окна берётся из `glfwGetFramebufferSize`, обновляется при растягивании |
 
 #### Методы
 
 | Метод | Описание |
 |-------|----------|
 | `SMGC()` | Конструктор. Задаёт имя `"SMGC"`. |
-| `int init() override` | Инициализирует GLFW, создаёт окно с контекстом OpenGL 4.4 core и колбэком на изменение размера, загружает glad, включает тест глубины и отсечение задних граней, компилирует шейдеры, создаёт VAO, VBO, EBO и SSBO и связывает атрибуты: 0 — `pos`, 1 — `attached`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, или код ошибки шейдера. |
+| `int init() override` | Инициализирует GLFW, создаёт окно с контекстом OpenGL 4.4 core и колбэком на изменение размера, загружает glad, включает тест глубины и отсечение задних граней, компилирует шейдеры, создаёт VAO, VBO, EBO и SSBO и связывает атрибуты: 0 — `pos`, 1 — `attached`, 2 — `objectIdx`, 3 — `polygonal`. Затем инициализирует `overlay`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, код ошибки шейдера или код ошибки `overlay.init()`. |
 | `void windowResize()` | Вызывается при изменении размера окна. Пока пустой. |
-| `void swapObjects()` | Меняет местами буферы A и B и загружает вершины и индексы A в VBO и EBO. Перед загрузкой отвязывает VAO. |
-| `void clearObjects()` | Очищает буфер B и добавляет в него `AntiCube` вокруг камеры (`objectIdx = -2`) и прокси пола `Plane` (`objectIdx = -1`). |
+| `void swapObjects()` | Меняет местами буферы A и B и загружает вершины и индексы A в VBO и EBO. Перед загрузкой отвязывает VAO. Затем меняет буферы `overlay`. |
+| `void clearObjects()` | Очищает буфер B и добавляет в него `AntiCube` вокруг камеры (`objectIdx = -2`) и прокси пола `Plane` (`objectIdx = -1`). Очищает буфер B `overlay`. |
 | `void pushObject(std::unique_ptr<Object> obj, const VertexAttributes& attributes)` | Отсекает объект по дальности (для `attached` — от камеры в её системе), строит его прокси-меш в буфер B через `GenerateObject` и, если объект не отсечён целиком, добавляет его в `Objects_B` через `ToGpuObject`. Вершинам меша проставляются `attached`, `polygonal` и `objectIdx` — номер объекта в `Objects_B`. `obj` не должен быть `nullptr`. |
-| `int draw()` | Очищает экран, загружает `Objects_A` в SSBO, задаёт uniform-переменные и рисует 3 прохода (см. [Гибридный рендеринг](#гибридный-рендеринг)). В конце отвязывает VAO. Возвращает `0` или `-ENODEV`, если буферы или шейдер не созданы. |
+| `int draw()` | Очищает экран, загружает `Objects_A` в SSBO, задаёт uniform-переменные и рисует 3 прохода (см. [Гибридный рендеринг](#гибридный-рендеринг)). Затем отвязывает VAO и рисует `overlay`. Возвращает `0` или `-ENODEV`, если буферы или шейдер не созданы. |
 | `void setOutline(bool enabled)` | Включает или выключает каркас. |
 | `void setShadows(bool enabled)` | Включает или выключает тени. |
 | `int setMaxDist(float newMaxDist)` | Задаёт дальность прорисовки. Возвращает `0` или `-EINVAL`, если значение не конечное или не больше 0. |
 | `void setCamera(const Camera& newCamera)` | Задаёт камеру. |
+| `int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align)` | Добавляет текст в буфер B `overlay`. Возвращает `0` или `-EINVAL`, если `size` не конечный или меньше 0. |
+| `int setFont(const std::string& path)` | Загружает шрифт в `overlay`. Возвращает `0` или код ошибки `Font::Load`, при ошибке пишет в лог и оставляет прежний шрифт. |
 | `int subscribeKey(int componentIdx, int key)` | Добавляет подписку, если её ещё нет. Возвращает `0` или `-EINVAL` для недопустимого кода клавиши. |
 | `int unsubscribeKey(int componentIdx, int key)` | Удаляет подписку, если она есть. Возвращает `0`. |
 | `void sendKeyStates()` | Отправляет `task_SmgcKeyState` по каждой подписке. Перебирает копию списка, поэтому подписчик может отписаться прямо в обработчике задачи. |
 | `int processTask(std::unique_ptr<BaseTask> task) override` | Выбирает обработчик по `taskIdx`. Для подписки и отписки id подписчика берётся из `getCreatorIdx()` задачи. Возвращает код обработчика: `0`, или `-EINVAL` для недопустимой дальности или клавиши. |
 | `int tick(long long tickCounter) override` | Если окно закрыто, вызывает `Core_stop()`. Иначе рассылает состояние клавиш, в режиме отладки выводит камеру, рисует кадр, меняет буферы окна и обрабатывает события. Возвращает `0` или код ошибки `draw()`. |
-| `void death() override` | Сбрасывает подписки, удаляет буферы и шейдер, закрывает окно, завершает GLFW и вызывает `Core_stop()`: без окна программа дальше не работает. |
+| `void death() override` | Сбрасывает подписки, удаляет буферы, шейдер и `overlay`, закрывает окно, завершает GLFW и вызывает `Core_stop()`: без окна программа дальше не работает. |
 
 ---
 
@@ -624,17 +680,14 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 
 `include/smgc/display2D.h`, `src/smgc/display2D.cpp` — наследник `BaseComponent`, имя компонента `"SMGC2D"`.
 
-2D-компонент рендера: окно, контекст OpenGL, буферы фигур и отрисовка. Подписки на клавиши хранятся в `KeySubscription`, как у `SMGC`.
+2D-компонент рендера: окно, контекст OpenGL, подписки на клавиши и задачи. Шейдер, буферы фигур и шрифт принадлежат `Layer2D`. Подписки на клавиши хранятся в `KeySubscription`, как у `SMGC`.
 
 #### Поля (private)
 
 | Поле | Тип | По умолчанию | Описание |
 |------|-----|--------------|----------|
 | `window` | `GLFWwindow*` | `nullptr` | Окно GLFW |
-| `shaderProgram` | `std::unique_ptr<Shader>` | `nullptr` | Программа из `display2D.vert` и `display2D.frag` |
-| `vao`, `vbo`, `ebo` | `std::unique_ptr<VAO/VBO/EBO>` | `nullptr` | Буферы геометрии фигур |
-| `Vertices_A`, `Vertices_B` | `std::vector<Vertex2D>` | пусто | Вершины фигур: A — на экране, B — собираемые |
-| `Indices_A`, `Indices_B` | `std::vector<GLuint>` | пусто | Индексы фигур |
+| `layer` | `Layer2D` | — | Шейдер, буферы фигур A/B и шрифт |
 | `keySubscriptions` | `std::vector<KeySubscription>` | пусто | Подписки на клавиши |
 | `outlineEnabled` | `bool` | `true` | Рисовать ли каркас |
 | `windowWidth`, `windowHeight` | `int` | `800` | Размер framebuffer. После создания окна берётся из `glfwGetFramebufferSize`, обновляется при растягивании |
@@ -644,7 +697,7 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | Метод | Описание |
 |-------|----------|
 | `SMGC2D()` | Конструктор. Задаёт имя `"SMGC2D"`. |
-| `int init() override` | Инициализирует GLFW, создаёт окно `SMGC2D` с контекстом OpenGL 4.4 core и колбэком на изменение размера, загружает glad, выключает тест глубины и отсечение граней, включает смешивание, компилирует шейдеры, создаёт VAO, VBO и EBO и связывает атрибуты `Vertex2D` с location 0–4. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, или код ошибки шейдера. |
+| `int init() override` | Инициализирует GLFW, создаёт окно `SMGC2D` с контекстом OpenGL 4.4 core и колбэком на изменение размера, загружает glad и инициализирует `layer`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, или код ошибки `layer.init()`. |
 | `void swapShapes()` | Меняет местами буферы A и B и загружает вершины и индексы A в VBO и EBO. Перед загрузкой отвязывает VAO. Обработчик `task_SmgcSwapObjects`. |
 | `void clearShapes()` | Очищает буфер B. Обработчик `task_SmgcClearObjects`. |
 | `int drawRect(const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color)` | Добавляет прямоугольник в буфер B. |
@@ -654,17 +707,76 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | `int drawRoundedRect(const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color)` | Добавляет скруглённый прямоугольник. |
 | `int drawRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color)` | Добавляет кольцо. |
 | `int drawLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color)` | Добавляет отрезок. |
+| `int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align)` | Добавляет текст. |
+| `int setFont(const std::string& path)` | Загружает шрифт. Возвращает `0` или код ошибки `Font::Load`, при ошибке пишет в лог и оставляет прежний шрифт. |
 | `void setOutline(bool enabled)` | Включает или выключает каркас. |
 | `int subscribeKey(int componentIdx, int key)` | Как у `SMGC`. |
 | `int unsubscribeKey(int componentIdx, int key)` | Как у `SMGC`. |
 | `void sendKeyStates()` | Как у `SMGC`. |
-| `int draw()` | Очищает экран в чёрный, задаёт `iResolution`, рисует заливку и, если включён, каркас (см. [Как рисуются фигуры](#как-рисуются-фигуры)). В конце отвязывает VAO. Возвращает `0` или `-ENODEV`, если VAO или шейдер не созданы. |
+| `int draw()` | Очищает экран в чёрный и рисует `layer` с каркасом, если он включён (см. [Как рисуются фигуры](#как-рисуются-фигуры)). Возвращает `0`. |
 | `int processTask(std::unique_ptr<BaseTask> task) override` | Выбирает обработчик по `taskIdx`. Возвращает код обработчика: `0` или `-EINVAL`. |
 | `int tick(long long tickCounter) override` | Если окно закрыто, вызывает `Core_stop()`. Иначе рассылает состояние клавиш, рисует кадр, меняет буферы окна и обрабатывает события. Возвращает `0` или код ошибки `draw()`. |
-| `void death() override` | Сбрасывает подписки, удаляет буферы и шейдер, закрывает окно, завершает GLFW и вызывает `Core_stop()`. |
+| `void death() override` | Сбрасывает подписки, удаляет `layer`, закрывает окно, завершает GLFW и вызывает `Core_stop()`. |
 | `int invalidArgument(const char* function, const char* name, float value)` (private) | Пишет в `cerr` ошибку о недопустимом аргументе и возвращает `-EINVAL`. |
 
 Все методы `draw*`, кроме `drawTriangle`, проверяют, что размеры, радиусы и толщины конечные и не меньше 0, и возвращают `0` или `-EINVAL`.
+
+---
+
+### Layer2D
+
+`include/smgc/Layer2D.h`, `src/smgc/Layer2D.cpp` — 2D-слой из библиотеки `smgc::common`. Им пользуются `SMGC2D` (вся сцена) и `SMGC` (текст поверх 3D). Аргументы не проверяет: это делают компоненты.
+
+| Поле (private) | Тип | Описание |
+|----------------|-----|----------|
+| `shaderProgram` | `std::unique_ptr<Shader>` | Программа из `files/display2D.vert` и `files/display2D.frag` |
+| `vao`, `vbo`, `ebo` | `std::unique_ptr<VAO/VBO/EBO>` | Буферы геометрии |
+| `font` | `Font` | Шрифт текста |
+| `Vertices_A`, `Vertices_B` | `std::vector<Vertex2D>` | Вершины: A — на экране, B — собираемые |
+| `Indices_A`, `Indices_B` | `std::vector<GLuint>` | Индексы |
+
+| Метод | Описание |
+|-------|----------|
+| `int init()` | Компилирует 2D-шейдеры, загружает `files/DejaVuSans.ttf`, создаёт VAO, VBO и EBO и связывает атрибуты `Vertex2D` с location 0–4. Нужен текущий контекст OpenGL. Возвращает `0`, код ошибки шейдера или код ошибки `Font::Load`. |
+| `void clear()` | Очищает буфер B. |
+| `void swap()` | Меняет буферы A и B местами и загружает A в VBO и EBO. Перед загрузкой отвязывает VAO. |
+| `void pushRect`, `pushTriangle`, `pushCircle`, `pushEllipse`, `pushRoundedRect`, `pushRing`, `pushLine`, `pushText` | Добавляют фигуру или текст в буфер B через функции `Shapes2D.h`. Аргументы такие же, как у задач. |
+| `int setFont(const std::string& path)` | `font.Load(path)`. |
+| `void draw(int width, int height, bool outline)` | Если буфер A пуст, ничего не делает. Иначе выключает тест глубины и отсечение граней, включает смешивание, задаёт `iResolution`, привязывает атлас к блоку 0 и рисует заливку и, если `outline`, каркас. Потом возвращает тест глубины, отсечение и смешивание в прежнее состояние, поэтому слой можно рисовать поверх 3D-сцены. |
+| `void destroy()` | Удаляет буферы, шейдер и текстуру шрифта. |
+
+---
+
+### Font
+
+`include/smgc/Font.h`, `src/smgc/Font.cpp` — шрифт TTF и его SDF-атлас в текстуре OpenGL. Реализация stb_truetype собирается в `Font.cpp`.
+
+| Метод | Описание |
+|-------|----------|
+| `int Load(const std::string& path)` | Читает файл, строит атлас по диапазонам из [Текст](#текст) и загружает его в текстуру `ID` (`GL_R8`, линейная фильтрация). Возвращает `0`, `-ENOENT`, если файл не открылся, или `-EINVAL`, если это не TTF. При ошибке прежний шрифт остаётся. |
+| `void Bind(GLuint unit) const` | Привязывает атлас к текстурному блоку `unit`. |
+| `void Delete()` | Удаляет текстуру и забывает шрифт. |
+| `bool IsLoaded() const` | Загружен ли шрифт. |
+| `const Glyph* FindGlyph(uint32_t codepoint) const` | Глиф символа или `nullptr`, если его нет в атласе. |
+| `float Kerning(const Glyph& left, const Glyph& right) const` | Поправка расстояния между двумя глифами. |
+| `float BakeSize() const` | Размер, на котором построен атлас: 48. |
+| `float Ascent() const` | Высота над базовой линией. |
+| `float LineHeight() const` | Межстрочный интервал: `ascent − descent + lineGap`. |
+| `float DistanceScale() const` | Перевод значения атласа (0–1) в пиксели атласа: `255 / 16`. |
+
+Все размеры возвращаются в пикселях атласа, то есть для высоты шрифта 48. Для текста размера `size` их умножают на `size / BakeSize()`.
+
+Структура `Glyph`:
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `index` | `int` | Номер глифа в шрифте, для кернинга |
+| `size` | `glm::vec2` | Размер битмапа с полем; у пробела `0` |
+| `offset` | `glm::vec2` | Сдвиг верхнего левого угла битмапа от пера на базовой линии (y вниз) |
+| `uvMin`, `uvMax` | `glm::vec2` | Прямоугольник глифа в атласе |
+| `advance` | `float` | Сдвиг пера после глифа |
+
+`enum class TextAlign : int`: `Left = 0`, `Center = 1`, `Right = 2`.
 
 ---
 
@@ -691,7 +803,7 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 
 ### Задачи taskDefinitions2D.h
 
-`include/smgc/taskDefinitions2D.h`, `src/smgc/taskDefinitions2D.cpp`. Задачи фигур для `SMGC2D`, наследники `BaseTask`. Их `taskIdx` продолжают нумерацию `taskDefinitions.h`.
+`include/smgc/taskDefinitions2D.h`, `src/smgc/taskDefinitions2D.cpp`, библиотека `smgc::common`. Задачи фигур и текста, наследники `BaseTask`. Фигуры принимает `SMGC2D`, текст и шрифт — `SMGC2D` и `SMGC`. Их `taskIdx` продолжают нумерацию `taskDefinitions.h`.
 
 | Класс | `taskIdx` | Поля | Проверка |
 |-------|-----------|------|----------|
@@ -702,6 +814,8 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | `task_SmgcDrawRoundedRect(const glm::vec2& t_pos, const glm::vec2& t_size, float t_cornerRadius, const glm::vec4& t_color)` | `15` | `glm::vec2 pos`, `glm::vec2 size`, `float cornerRadius`, `glm::vec4 color` | `bool taskIs_SmgcDrawRoundedRect(uint32_t taskIdx)` |
 | `task_SmgcDrawRing(const glm::vec2& t_center, float t_radius, float t_thickness, const glm::vec4& t_color)` | `16` | `glm::vec2 center`, `float radius`, `float thickness`, `glm::vec4 color` | `bool taskIs_SmgcDrawRing(uint32_t taskIdx)` |
 | `task_SmgcDrawLine(const glm::vec2& t_a, const glm::vec2& t_b, float t_thickness, const glm::vec4& t_color)` | `17` | `glm::vec2 a`, `b`, `float thickness`, `glm::vec4 color` | `bool taskIs_SmgcDrawLine(uint32_t taskIdx)` |
+| `task_SmgcDrawText(const std::string& t_text, const glm::vec2& t_pos, float t_size, const glm::vec4& t_color, TextAlign t_align = TextAlign::Left)` | `18` | `std::string text`, `glm::vec2 pos`, `float size`, `glm::vec4 color`, `TextAlign align` | `bool taskIs_SmgcDrawText(uint32_t taskIdx)` |
+| `task_SmgcSetFont(const std::string& t_path)` | `19` | `std::string path` | `bool taskIs_SmgcSetFont(uint32_t taskIdx)` |
 
 ---
 
@@ -797,7 +911,7 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 
 ### Функции Shapes2D.h
 
-`include/smgc/Shapes2D.h`, `src/smgc/Shapes2D.cpp`. Генераторы 2D-фигур добавляют вершины и индексы в конец переданных векторов. Координаты — в пикселях, как в задачах. Проверку аргументов делает `SMGC2D`, генераторы её не повторяют.
+`include/smgc/Shapes2D.h`, `src/smgc/Shapes2D.cpp`, библиотека `smgc::common`. Генераторы 2D-фигур добавляют вершины и индексы в конец переданных векторов. Координаты — в пикселях, как в задачах. Проверку аргументов делает `SMGC2D`, генераторы её не повторяют.
 
 | Функция | Геометрия |
 |---------|-----------|
@@ -808,18 +922,19 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 | `void RoundedRect2D(vertices, indices, const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color)` | Квад вокруг прямоугольника с запасом 1, `Shape2D::RoundedRect`. Радиус ограничивается половиной меньшей стороны |
 | `void Ring2D(vertices, indices, const glm::vec2& center, float radius, float thickness, const glm::vec4& color)` | Квад `center ± (radius + 1)`, `Shape2D::Ring`. Толщина ограничивается радиусом |
 | `void Line2D(vertices, indices, const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color)` | Квад вдоль `b − a`, расширенный на `thickness / 2 + 1` во все стороны, `Shape2D::Line`. При `a = b` получается круг диаметром `thickness` |
+| `void Text2D(vertices, indices, const Font& font, const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align)` | Квад на каждый видимый глиф, `Shape2D::Text`. Декодирует UTF-8, переносит строки по `\n`, применяет кернинг и выравнивание. Ничего не добавляет, если шрифт не загружен |
 
 Структура вершины `Vertex2D`:
 
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `pos` | `glm::vec2` | Позиция в пикселях |
-| `local` | `glm::vec2` | Смещение от опорной точки фигуры в пикселях: от центра у круга, эллипса, кольца и скруглённого прямоугольника, от `a` у отрезка |
+| `local` | `glm::vec2` | Смещение от опорной точки фигуры в пикселях: от центра у круга, эллипса, кольца и скруглённого прямоугольника, от `a` у отрезка. У текста — координаты в атласе шрифта |
 | `color` | `glm::vec4` | Цвет RGBA |
 | `params` | `glm::vec4` | Параметры SDF, см. таблицу в [Шейдеры 2D](#шейдеры-2d) |
 | `shape` | `GLint` | Тип фигуры, значение `Shape2D` |
 
-`enum class Shape2D : GLint`: `Polygon = 0`, `Circle = 1`, `Ellipse = 2`, `RoundedRect = 3`, `Ring = 4`, `Line = 5`.
+`enum class Shape2D : GLint`: `Polygon = 0`, `Circle = 1`, `Ellipse = 2`, `RoundedRect = 3`, `Ring = 4`, `Line = 5`, `Text = 6`.
 
 ---
 
@@ -841,6 +956,7 @@ Uniform-переменные, которые `SMGC2D` задаёт каждый 
 - **Новая задача** получает уникальный `taskIdx` (общий для `taskDefinitions.h` и `taskDefinitions2D.h`), функцию `taskIs_*` и ветку в `processTask` нужного компонента: `SMGC` или `SMGC2D`.
 - **Новый тип объекта** добавляется в 3 места: SDF в `default.frag` (`map`), прокси-меш в `GenerateObject` и радиус в `ObjectBoundingRadius`. Прокси обязан охватывать SDF.
 - **Новая 2D-фигура** добавляется в 5 мест: значение в `Shape2D` и такой же `SHAPE_*` с SDF в `display2D.frag`, генератор в `Shapes2D`, задача в `taskDefinitions2D` и метод `draw*` в `SMGC2D`. Квад SDF-фигуры обязан охватывать её с запасом в 1 пиксель для сглаживания.
+- **Текст.** Граница глифа в атласе — значение 128: `kOnEdge` в `Font.cpp` и `TEXT_EDGE` в `display2D.frag` должны совпадать. Новые символы добавляются диапазоном в `kRanges` в `Font.cpp`.
 - **`GpuObject`** в C++ и `Object` в GLSL должны совпадать, размер проверяется `static_assert`.
 - **Подписчик на клавиши** обязан отписаться от всех клавиш в своём `death()`.
 
@@ -899,7 +1015,7 @@ int main(int argc, char *argv[]) {
 
 ### 2D
 
-Часы с секундной стрелкой в центре окна 800×800, без каркаса:
+Часы с секундной стрелкой в центре окна 800×800 и счётчиком секунд под ними, без каркаса:
 
 ```cpp
 #include <smpb/Core.h>
@@ -907,6 +1023,7 @@ int main(int argc, char *argv[]) {
 #include <smgc/display2D.h>
 
 #include <cmath>
+#include <format>
 
 class Clock : public BaseComponent {
 public:
@@ -926,6 +1043,7 @@ public:
         sendTask(std::make_unique<task_SmgcDrawRing>(center, 200.0f, 8.0f, glm::vec4{1.0f}), "SMGC2D");
         sendTask(std::make_unique<task_SmgcDrawLine>(center, center + hand * 170.0f, 6.0f, glm::vec4{PaletteCosinka(0.3f), 1.0f}), "SMGC2D");
         sendTask(std::make_unique<task_SmgcDrawCircle>(center, 12.0f, glm::vec4{1.0f}), "SMGC2D");
+        sendTask(std::make_unique<task_SmgcDrawText>(std::format("{} с", tickCounter / Core_getTPS()), glm::vec2{400.0f, 620.0f}, 40.0f, glm::vec4{1.0f}, TextAlign::Center), "SMGC2D");
         sendTask(std::make_unique<task_SmgcSwapObjects>(), "SMGC2D");
         return 0;
     }
@@ -956,8 +1074,10 @@ smgc/
 │   ├── Camera.h                Структура Camera
 │   ├── KeySubscription.h       Структура KeySubscription, общая для SMGC и SMGC2D
 │   ├── taskDefinitions.h       Задачи SMGC: сцена, камера, настройки, подписка на клавиши
-│   ├── taskDefinitions2D.h     Задачи фигур SMGC2D
-│   ├── Shapes2D.h              Структура Vertex2D, enum Shape2D и генераторы 2D-фигур
+│   ├── taskDefinitions2D.h     Задачи фигур, текста и шрифта
+│   ├── Shapes2D.h              Структура Vertex2D, enum Shape2D и генераторы 2D-фигур и текста
+│   ├── Font.h                  Шрифт TTF и SDF-атлас глифов, enum TextAlign
+│   ├── Layer2D.h               2D-слой: шейдер, буферы, шрифт; общий для SMGC2D и HUD в SMGC
 │   ├── ObjectsBuffer.h         Структуры Object и GpuObject, SSBO
 │   ├── ObjectsGenerator.h      Генераторы прокси-мешей и отсечение по дальности
 │   ├── shaderClass.h           Шейдерная программа
@@ -971,6 +1091,8 @@ smgc/
 │   ├── taskDefinitions.cpp
 │   ├── taskDefinitions2D.cpp
 │   ├── Shapes2D.cpp
+│   ├── Font.cpp
+│   ├── Layer2D.cpp
 │   ├── ObjectsBuffer.cpp
 │   ├── ObjectsGenerator.cpp
 │   ├── shaderClass.cpp
@@ -981,18 +1103,21 @@ smgc/
 ├── example/                  Программа smgc
 │   ├── main.cpp                Точка входа: Config → SMGC2D → Scene2D или Config → SMGC → Scene3D, выбор через SMGC_EXAMPLE_DIMENSION
 │   ├── Scene3D.h
-│   ├── Scene3D.cpp             3D-сцена: камера с клавиатуры и пять объектов типов 1, 2, 3, -1 и -2
+│   ├── Scene3D.cpp             3D-сцена: камера с клавиатуры, пять объектов типов 1, 2, 3, -1 и -2 и HUD с камерой
 │   ├── Scene2D.h
-│   └── Scene2D.cpp             2D-сцена: все фигуры с анимацией и игрок на WASD
+│   └── Scene2D.cpp             2D-сцена: все фигуры с анимацией, текст и игрок на WASD
 ├── files/                    Файлы для программы, при сборке копируются в files/ рядом с ней
 │   ├── default.vert            Вертексный шейдер: ручная проекция
 │   ├── default.frag            Фрагментный шейдер: ray-marching от прокси-поверхности
 │   ├── default copy.frag       Старый полноэкранный ray-marcher (не загружается)
 │   ├── display2D.vert          Вертексный шейдер 2D: пиксели → NDC
-│   ├── display2D.frag          Фрагментный шейдер 2D: SDF фигур и сглаживание
+│   ├── display2D.frag          Фрагментный шейдер 2D: SDF фигур и текста, сглаживание
+│   ├── DejaVuSans.ttf          Шрифт по умолчанию
+│   ├── DejaVuSans.LICENSE      Лицензия шрифта DejaVu
 │   ├── core.config             Пример конфигурации smpb
 │   └── разметка.txt            Описание полей Object
 ├── third_party/glad/         Загрузчик OpenGL
+├── third_party/stb/          stb_truetype.h — растеризатор шрифтов
 ├── LICENSE
 └── README.md
 ```
@@ -1000,3 +1125,9 @@ smgc/
 ## Лицензия
 
 [MIT](LICENSE) © 2026 Artem1123234232
+
+Сторонние файлы распространяются под своими лицензиями:
+
+- `files/DejaVuSans.ttf` — шрифт DejaVu Sans, лицензия Bitstream Vera / Arev в `files/DejaVuSans.LICENSE`;
+- `third_party/stb/stb_truetype.h` — MIT или public domain на выбор, текст лицензии в конце файла;
+- `third_party/glad` — сгенерированный загрузчик glad.

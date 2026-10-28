@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <format>
 
 static constexpr std::array<int, 6> kKeys = {
     GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D,
@@ -97,6 +98,26 @@ int Scene2D::tick(long long tickCounter) {
         glm::vec2{620.0f, 540.0f}, 70.0f, glm::vec4{col2, 1.0f}), ID_SMGC);
     sendTask(std::make_unique<task_SmgcDrawRect>(
         glm::vec2{560.0f, 500.0f}, glm::vec2{180.0f, 80.0f}, glm::vec4{col3, 0.5f}), ID_SMGC);
+
+    const glm::vec4 white{1.0f, 1.0f, 1.0f, 1.0f};
+    const glm::vec4 gray{0.7f, 0.7f, 0.7f, 1.0f};
+    sendTask(std::make_unique<task_SmgcDrawText>(
+        "SMGC2D: текст / text, Ёё", glm::vec2{400.0f, 6.0f}, 28.0f, white, TextAlign::Center), ID_SMGC);
+
+    const std::array<std::pair<glm::vec2, const char*>, 9> labels = {{
+        {{140.0f, 205.0f}, "Rect"},     {{400.0f, 205.0f}, "RoundedRect"}, {{660.0f, 205.0f}, "Ellipse"},
+        {{140.0f, 422.0f}, "Circle"},   {{400.0f, 422.0f}, "Ring"},        {{660.0f, 422.0f}, "Triangle"},
+        {{155.0f, 625.0f}, "Line"},     {{400.0f, 635.0f}, "Line"},        {{650.0f, 625.0f}, "Alpha"},
+    }};
+    for (const auto& [pos, label] : labels)
+        sendTask(std::make_unique<task_SmgcDrawText>(label, pos, 16.0f, gray, TextAlign::Center), ID_SMGC);
+
+    sendTask(std::make_unique<task_SmgcDrawText>(
+        "WASD — движение\nO — линии\nR — сброс", glm::vec2{790.0f, 715.0f}, 18.0f, white, TextAlign::Right), ID_SMGC);
+    sendTask(std::make_unique<task_SmgcDrawText>(
+        std::format("tick: {}\nx: {:.0f}  y: {:.0f}", tickCounter, playerPos.x, playerPos.y), glm::vec2{10.0f, 740.0f}, 18.0f, white, TextAlign::Left), ID_SMGC);
+    sendTask(std::make_unique<task_SmgcDrawText>(
+        "Привет!", glm::vec2{155.0f, 650.0f}, 20.0f + 20.0f * m, glm::vec4{col3, 1.0f}, TextAlign::Center), ID_SMGC);
 
     sendTask(std::make_unique<task_SmgcDrawCircle>(
         playerPos, 25.0f, glm::vec4{1.0f, 1.0f, 1.0f, 1.0f}), ID_SMGC);

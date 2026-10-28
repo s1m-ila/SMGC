@@ -4,6 +4,7 @@
 #include <smpb/Core.h>
 
 #include <array>
+#include <format>
 
 static constexpr std::array<int, 12> kKeys = {
     GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_UP, GLFW_KEY_DOWN,
@@ -173,6 +174,15 @@ int Scene3D::tick(long long tickCounter) {
         ID_SMGC
     );
     
+    sendTask(
+        std::make_unique<task_SmgcDrawText>(
+            std::format("pos: {:.2f} {:.2f} {:.2f}\nrot: {:.1f} {:.1f} {:.1f}\nскорость: {:.2f}",
+                camera.pos.x, camera.pos.y, camera.pos.z, camera.rot.x, camera.rot.y, camera.rot.z, moveSpeed),
+            glm::vec2{10.0f, 10.0f}, 18.0f, glm::vec4{1.0f, 1.0f, 1.0f, 1.0f}
+        ),
+        ID_SMGC
+    );
+
     sendTask(std::make_unique<task_SmgcSwapObjects>(), ID_SMGC);
     return 0;
 }

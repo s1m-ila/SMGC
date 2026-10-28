@@ -6,6 +6,7 @@ flat in int fragShape;
 out vec4 fragColor;
 
 uniform float iOutline;
+uniform sampler2D iFont;
 
 #define SHAPE_POLYGON      0
 #define SHAPE_CIRCLE       1
@@ -13,6 +14,9 @@ uniform float iOutline;
 #define SHAPE_ROUNDED_RECT 3
 #define SHAPE_RING         4
 #define SHAPE_LINE         5
+#define SHAPE_TEXT         6
+
+#define TEXT_EDGE (128.0 / 255.0)
 
 float circleSDF(vec2 p, float radius) {
     return length(p) - radius;
@@ -51,6 +55,7 @@ void main() {
     else if (fragShape == SHAPE_ROUNDED_RECT) d = roundedRectSDF(fragLocal, fragParams.xy, fragParams.z);
     else if (fragShape == SHAPE_RING)         d = ringSDF(fragLocal, fragParams.x, fragParams.y);
     else if (fragShape == SHAPE_LINE)         d = lineSDF(fragLocal, fragParams.xy, fragParams.z);
+    else if (fragShape == SHAPE_TEXT)         d = (TEXT_EDGE - texture(iFont, fragLocal).r) * fragParams.x;
     else {
         fragColor = fragShapeColor;
         return;
