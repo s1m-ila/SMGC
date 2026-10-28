@@ -23,6 +23,18 @@ void VAO::LinkVBO(VBO& VBO, GLuint layoutPos, GLuint layoutAttached, GLuint layo
     glEnableVertexAttribArray(layoutPolygonal);
     VBO.Unbind();
 }
+void VAO::LinkAttrib(VBO& VBO, GLuint layout, GLint numComponents, GLenum type, GLsizei stride, const void* offset) {
+    VBO.Bind();
+    glVertexAttribPointer(layout, numComponents, type, GL_FALSE, stride, offset);
+    glEnableVertexAttribArray(layout);
+    VBO.Unbind();
+}
+void VAO::LinkAttribI(VBO& VBO, GLuint layout, GLint numComponents, GLenum type, GLsizei stride, const void* offset) {
+    VBO.Bind();
+    glVertexAttribIPointer(layout, numComponents, type, stride, offset);
+    glEnableVertexAttribArray(layout);
+    VBO.Unbind();
+}
 void VAO::Bind() {
     glBindVertexArray(ID);  
 }

@@ -1,4 +1,4 @@
-#include "Scene.h"
+#include "Scene3D.h"
 
 // Core class
 #include <smpb/Core.h>
@@ -11,19 +11,20 @@ static constexpr std::array<int, 12> kKeys = {
     GLFW_KEY_Q, GLFW_KEY_E, GLFW_KEY_C, GLFW_KEY_R,
 };
 
-Scene::Scene() : BaseComponent("Scene") {
+Scene3D::Scene3D() : BaseComponent("Scene3D") {
     // Constructor
 }
 
-int Scene::init() {
+int Scene3D::init() {
+    ID_SMGC = Core_getComponentIdxByName("SMGC");
     for (int key : kKeys) {
-        int errorCode = sendTask(std::make_unique<task_SmgcSubscribeKey>(key), "SMGC");
+        int errorCode = sendTask(std::make_unique<task_SmgcSubscribeKey>(key), ID_SMGC);
         if (errorCode != 0) return errorCode;
     }
     return 0;
 }
 
-int Scene::processTask(std::unique_ptr<BaseTask> task) {
+int Scene3D::processTask(std::unique_ptr<BaseTask> task) {
     if (taskIs_SmgcKeyState(task->getIdx())) {
         auto* typed = static_cast<task_SmgcKeyState*>(task.get());
         pressedKeys[typed->key] = typed->pressed;
@@ -32,12 +33,12 @@ int Scene::processTask(std::unique_ptr<BaseTask> task) {
     return -EINVAL;
 }
 
-bool Scene::isPressed(int key) const {
+bool Scene3D::isPressed(int key) const {
     auto it = pressedKeys.find(key);
     return it != pressedKeys.end() && it->second;
 }
 
-void Scene::keyboard(long long tickCounter) {
+void Scene3D::keyboard(long long tickCounter) {
     float dt = 1.0f / float(Core_getTPS());
 
     if (isPressed(GLFW_KEY_LEFT))  camera.rot.y += rotSpeed * dt;
@@ -103,11 +104,11 @@ void Scene::keyboard(long long tickCounter) {
     }
 }
 
-int Scene::tick(long long tickCounter) {
+int Scene3D::tick(long long tickCounter) {
     keyboard(tickCounter);
-    sendTask(std::make_unique<task_SmgcSetCamera>(camera), "SMGC");
+    sendTask(std::make_unique<task_SmgcSetCamera>(camera), ID_SMGC);
 
-    sendTask(std::make_unique<task_SmgcClearObjects>(), "SMGC");
+    sendTask(std::make_unique<task_SmgcClearObjects>(), ID_SMGC);
     
     float time = float(tickCounter) / float(Core_getTPS());
     float m = (sin(time * 2.0f)) * 0.5f + 0.5f;
@@ -123,7 +124,7 @@ int Scene::tick(long long tickCounter) {
                 glm::vec4{0.0f, 0.0f, 0.0f, 0.0f}
             )
         ),
-        "SMGC"
+        ID_SMGC
     );
     for (int i = -2; i < 2; i += 2) {
         sendTask(
@@ -135,7 +136,7 @@ int Scene::tick(long long tickCounter) {
                     glm::vec4{rot, rot, rot, 0.0f}
                 )
             ),
-            "SMGC"
+            ID_SMGC
         );
     }
     sendTask(
@@ -147,7 +148,7 @@ int Scene::tick(long long tickCounter) {
                 glm::vec4{rot, rot, rot, 0.0f}
             )
         ),
-        "SMGC"
+        ID_SMGC
     );
     sendTask(
         std::make_unique<task_SmgcPushObject>(
@@ -158,7 +159,7 @@ int Scene::tick(long long tickCounter) {
                 glm::vec4{0.0f, 0.0f, 0.0f, 0.0f}
             )
         ),
-        "SMGC"
+        ID_SMGC
     );
     sendTask(
         std::make_unique<task_SmgcPushObject>(
@@ -169,13 +170,13 @@ int Scene::tick(long long tickCounter) {
                 glm::vec4{0.0f, 0.0f, 0.0f, 0.0f}
             )
         ),
-        "SMGC"
+        ID_SMGC
     );
     
-    sendTask(std::make_unique<task_SmgcSwapObjects>(), "SMGC");
+    sendTask(std::make_unique<task_SmgcSwapObjects>(), ID_SMGC);
     return 0;
 }
 
-void Scene::death() {
-    for (int key : kKeys) sendTask(std::make_unique<task_SmgcUnsubscribeKey>(key), "SMGC");
+void Scene3D::death() {
+    for (int key : kKeys) sendTask(std::make_unique<task_SmgcUnsubscribeKey>(key), ID_SMGC);
 }

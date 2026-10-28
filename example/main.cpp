@@ -13,18 +13,27 @@
 #include <smpb/Config.h>
 #include <smpb/Core.h>
 
-// SMGC
-#include <smgc/display3D.h>
+#define SMGC_EXAMPLE_DIMENSION 2
 
-// Scene
-#include "Scene.h"
+#if SMGC_EXAMPLE_DIMENSION == 2
+#include <smgc/display2D.h>
+#include "Scene2D.h"
+#else
+#include <smgc/display3D.h>
+#include "Scene3D.h"
+#endif
 
 int main(int argc, char *argv[]) {
     Core core = Core();
     core.setDebugModeEnabled(true);
     core.appendComponent(std::make_unique<Config>(argc, argv));
+#if SMGC_EXAMPLE_DIMENSION == 2
+    core.appendComponent(std::make_unique<SMGC2D>());
+    core.appendComponent(std::make_unique<Scene2D>());
+#else
     core.appendComponent(std::make_unique<SMGC>());
-    core.appendComponent(std::make_unique<Scene>());
+    core.appendComponent(std::make_unique<Scene3D>());
+#endif
 
     core.init();
 

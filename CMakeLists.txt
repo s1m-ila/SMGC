@@ -43,8 +43,8 @@ if(NOT TARGET smpb::core)
   FetchContent_MakeAvailable(smpb)
 endif()
 
-# --- smgc::display3D ---
-add_library(smgc_display3D STATIC
+# --- smgc::common ---
+add_library(smgc_common STATIC
   src/smgc/shaderClass.cpp
   src/smgc/VAO.cpp
   src/smgc/VBO.cpp
@@ -52,18 +52,16 @@ add_library(smgc_display3D STATIC
   src/smgc/ObjectsBuffer.cpp
   src/smgc/paletts.cpp
   src/smgc/taskDefinitions.cpp
-  src/smgc/ObjectsGenerator.cpp
-  src/smgc/display3D.cpp
 )
-add_library(smgc::display3D ALIAS smgc_display3D)
+add_library(smgc::common ALIAS smgc_common)
 
-target_include_directories(smgc_display3D PUBLIC
+target_include_directories(smgc_common PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-target_compile_features(smgc_display3D PUBLIC cxx_std_23)
-set_target_properties(smgc_display3D PROPERTIES CXX_EXTENSIONS OFF)
+target_compile_features(smgc_common PUBLIC cxx_std_23)
+set_target_properties(smgc_common PROPERTIES CXX_EXTENSIONS OFF)
 
-target_link_libraries(smgc_display3D
+target_link_libraries(smgc_common
   PUBLIC
     smpb::core
     glad
@@ -73,11 +71,44 @@ target_link_libraries(smgc_display3D
     OpenGL::GL
 )
 
+# --- smgc::display3D ---
+add_library(smgc_display3D STATIC
+  src/smgc/ObjectsGenerator.cpp
+  src/smgc/display3D.cpp
+)
+add_library(smgc::display3D ALIAS smgc_display3D)
+set_target_properties(smgc_display3D PROPERTIES CXX_EXTENSIONS OFF)
+
+target_link_libraries(smgc_display3D
+  PUBLIC
+    smgc::common
+  PRIVATE
+    OpenGL::GL
+)
+
+# --- smgc::display2D ---
+add_library(smgc_display2D STATIC
+  src/smgc/Shapes2D.cpp
+  src/smgc/taskDefinitions2D.cpp
+  src/smgc/display2D.cpp
+)
+add_library(smgc::display2D ALIAS smgc_display2D)
+set_target_properties(smgc_display2D PROPERTIES CXX_EXTENSIONS OFF)
+
+target_link_libraries(smgc_display2D
+  PUBLIC
+    smgc::common
+  PRIVATE
+    OpenGL::GL
+)
+
 # --- FILES ---
 function(smgc_copy_files TARGET)
   set(SMGC_FILES
       "default.vert"
       "default.frag"
+      "display2D.vert"
+      "display2D.frag"
   )
 
   foreach(FILE ${SMGC_FILES})
@@ -95,9 +126,10 @@ option(SMGC_BUILD_EXAMPLE "Build smgc example" ${PROJECT_IS_TOP_LEVEL})
 if(SMGC_BUILD_EXAMPLE)
   add_executable(smgc
     example/main.cpp
-    example/Scene.cpp
+    example/Scene3D.cpp
+    example/Scene2D.cpp
   )
-  target_link_libraries(smgc PRIVATE smgc::display3D)
+  target_link_libraries(smgc PRIVATE smgc::display3D smgc::display2D)
   set_target_properties(smgc PROPERTIES CXX_EXTENSIONS OFF)
 
   include(GNUInstallDirs)

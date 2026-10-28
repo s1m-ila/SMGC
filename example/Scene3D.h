@@ -11,15 +11,17 @@
 
 #include <unordered_map>
 
-class Scene: public BaseComponent
+class Scene3D: public BaseComponent
 {
 public:
-    Scene();
+    Scene3D();
     int init() override;
     int processTask(std::unique_ptr<BaseTask> task) override;
     int tick(long long tickCounter) override;
     void death() override;
 private:
+    int ID_SMGC;
+
     bool isPressed(int key) const;
     void keyboard(long long tickCounter);
 

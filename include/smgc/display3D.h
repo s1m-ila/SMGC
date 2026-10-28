@@ -40,10 +40,7 @@
 
 #include "Camera.h"
 
-struct KeySubscription {
-    int componentIdx;
-    int key;
-};
+#include "KeySubscription.h"
 
 class SMGC: public BaseComponent
 {

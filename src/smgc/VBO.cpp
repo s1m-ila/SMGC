@@ -5,15 +5,18 @@ VBO::VBO() {
 }
 
 void VBO::Upload(const std::vector<Vertex>& vertices) {
+    Upload(vertices.data(), sizeof(Vertex) * vertices.size());
+}
+
+void VBO::Upload(const void* data, size_t bytes) {
     glBindBuffer(GL_ARRAY_BUFFER, ID);
-    const size_t needed = sizeof(Vertex) * vertices.size();
-    if (needed == capacityBytes && needed > 0)
-        glBufferSubData(GL_ARRAY_BUFFER, 0, needed, vertices.data());
+    if (bytes == capacityBytes && bytes > 0)
+        glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, data);
     else {
-        glBufferData(GL_ARRAY_BUFFER, needed,
-                     vertices.empty() ? nullptr : vertices.data(),
+        glBufferData(GL_ARRAY_BUFFER, bytes,
+                     bytes == 0 ? nullptr : data,
                      GL_DYNAMIC_DRAW);
-        capacityBytes = needed;
+        capacityBytes = bytes;
     }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

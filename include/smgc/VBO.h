@@ -24,6 +24,7 @@ public:
     VBO();
 
     void Upload(const std::vector<Vertex>& vertices);
+    void Upload(const void* data, size_t bytes);
     void Bind();
     void Unbind();
     void Delete();
