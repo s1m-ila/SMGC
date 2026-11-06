@@ -54,6 +54,7 @@ add_library(smgc_common STATIC
   src/smgc/taskDefinitions.cpp
   src/smgc/taskDefinitions2D.cpp
   src/smgc/Font.cpp
+  src/smgc/TextureStore.cpp
   src/smgc/Shapes2D.cpp
   src/smgc/Layer2D.cpp
 )

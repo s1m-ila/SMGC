@@ -6,6 +6,10 @@ static constexpr const char* kVertexShaderPath   = "files/display2D.vert";
 static constexpr const char* kFragmentShaderPath = "files/display2D.frag";
 static constexpr const char* kDefaultFontPath    = "files/DejaVuSans.ttf";
 
+static constexpr float kNoneFrameThickness = 2.0f;
+static constexpr float kNoneIndent = 4.0f;
+static constexpr float kNoneLineThickness = 2.0f;
+
 int Layer2D::init() {
     shaderProgram = std::make_unique<Shader>(kVertexShaderPath, kFragmentShaderPath);
     int errorCode = shaderProgram->getStatus();
@@ -37,47 +41,100 @@ int Layer2D::init() {
 void Layer2D::clear() {
     Vertices_B.clear();
     Indices_B.clear();
+    Batches_B.clear();
 }
 
 void Layer2D::swap() {
     std::swap(Vertices_A, Vertices_B);
     std::swap(Indices_A, Indices_B);
+    std::swap(Batches_A, Batches_B);
 
     vao->Unbind();
     vbo->Upload(Vertices_A.data(), sizeof(Vertex2D) * Vertices_A.size());
     ebo->Upload(Indices_A);
 }
 
+void Layer2D::track(uint32_t texture, size_t indexStart) {
+    const size_t count = Indices_B.size() - indexStart;
+    if (count == 0) return;
+    if (!Batches_B.empty()) {
+        DrawBatch& last = Batches_B.back();
+        if (last.texture == texture && last.indexStart + last.indexCount == indexStart) {
+            last.indexCount += count;
+            return;
+        }
+    }
+    Batches_B.push_back({texture, indexStart, count});
+}
+
 void Layer2D::pushRect(const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     Rect2D(Vertices_B, Indices_B, pos, size, color);
+    track(kInvalidTexture, start);
 }
 void Layer2D::pushTriangle(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     Triangle2D(Vertices_B, Indices_B, a, b, c, color);
+    track(kInvalidTexture, start);
 }
 void Layer2D::pushCircle(const glm::vec2& center, float radius, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     Circle2D(Vertices_B, Indices_B, center, radius, color);
+    track(kInvalidTexture, start);
 }
 void Layer2D::pushEllipse(const glm::vec2& center, const glm::vec2& radii, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     Ellipse2D(Vertices_B, Indices_B, center, radii, color);
+    track(kInvalidTexture, start);
 }
 void Layer2D::pushRoundedRect(const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     RoundedRect2D(Vertices_B, Indices_B, pos, size, cornerRadius, color);
+    track(kInvalidTexture, start);
 }
 void Layer2D::pushRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     Ring2D(Vertices_B, Indices_B, center, radius, thickness, color);
+    track(kInvalidTexture, start);
 }
 void Layer2D::pushLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
     Line2D(Vertices_B, Indices_B, a, b, thickness, color);
+    track(kInvalidTexture, start);
+}
+void Layer2D::pushTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+    const size_t start = Indices_B.size();
+    if (textures.Exists(id)) {
+        Texture2D(Vertices_B, Indices_B, pos, size, color);
+        track(id, start);
+        return;
+    }
+
+    const glm::vec4 darkGray{0.25f, 0.25f, 0.25f, 1.0f};
+    const glm::vec4 white{1.0f, 1.0f, 1.0f, 1.0f};
+    const glm::vec4 red{0.75f, 0.25f, 0.25f, 1.0f};
+    const glm::vec2 innerSize = glm::max(size - kNoneFrameThickness * 2.0f, glm::vec2(0.0f));
+    Rect2D(Vertices_B, Indices_B, pos, size, darkGray);
+    Rect2D(Vertices_B, Indices_B, pos + kNoneFrameThickness, innerSize, white);
+    Line2D(Vertices_B, Indices_B, pos + kNoneIndent, pos + size - kNoneIndent, kNoneLineThickness, red);
+    Line2D(Vertices_B, Indices_B, pos + glm::vec2{kNoneIndent, size.y - kNoneIndent}, pos + glm::vec2{size.x - kNoneIndent, kNoneIndent}, kNoneLineThickness, red);
+    track(kInvalidTexture, start);
 }
 TextMetrics Layer2D::measureText(const std::string& text, float size) const {
     return MeasureText2D(font, text, size);
 }
 void Layer2D::pushText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align) {
+    const size_t start = Indices_B.size();
     Text2D(Vertices_B, Indices_B, font, text, pos, size, color, align);
+    track(kInvalidTexture, start);
 }
 
 int Layer2D::setFont(const std::string& path) {
     return font.Load(path);
+}
+
+TextureStore& Layer2D::textureStore() {
+    return textures;
 }
 
 void Layer2D::draw(int width, int height, bool outline) {
@@ -99,7 +156,11 @@ void Layer2D::draw(int width, int height, bool outline) {
 
     shaderProgram->setFloat("iOutline", 0.0f);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDrawElements(GL_TRIANGLES, Indices_A.size(), GL_UNSIGNED_INT, 0);
+    for (const auto& batch : Batches_A) {
+        if (batch.texture != kInvalidTexture && !textures.Bind(batch.texture, 1)) continue;
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(batch.indexCount), GL_UNSIGNED_INT, reinterpret_cast<const void*>(batch.indexStart * sizeof(GLuint)));
+    }
+    glActiveTexture(GL_TEXTURE0);
 
     if (outline) {
         shaderProgram->setFloat("iOutline", 1.0f);
@@ -122,8 +183,11 @@ void Layer2D::destroy() {
     if (ebo) ebo->Delete();
     if (shaderProgram && shaderProgram->getStatus() == 0) shaderProgram->Delete();
     font.Delete();
+    textures.Destroy();
     vao = nullptr;
     vbo = nullptr;
     ebo = nullptr;
     shaderProgram = nullptr;
+    Batches_A.clear();
+    Batches_B.clear();
 }

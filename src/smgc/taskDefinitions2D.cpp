@@ -50,3 +50,38 @@ task_SmgcMeasureText::task_SmgcMeasureText(const std::string& t_text, float t_si
 bool taskIs_SmgcMeasureText(uint32_t taskIdx) {
     return taskIdx == 21;
 }
+
+task_SmgcLoadTexture::task_SmgcLoadTexture(const std::string& t_path, uint32_t* t_id): BaseTask(22), path(t_path), id(t_id) {}
+bool taskIs_SmgcLoadTexture(uint32_t taskIdx) {
+    return taskIdx == 22;
+}
+
+task_SmgcFreeTexture::task_SmgcFreeTexture(uint32_t t_id): BaseTask(23), id(t_id) {}
+bool taskIs_SmgcFreeTexture(uint32_t taskIdx) {
+    return taskIdx == 23;
+}
+
+task_SmgcGetTextureSize::task_SmgcGetTextureSize(uint32_t t_id, int* t_width, int* t_height): BaseTask(24), id(t_id), width(t_width), height(t_height) {}
+bool taskIs_SmgcGetTextureSize(uint32_t taskIdx) {
+    return taskIdx == 24;
+}
+
+task_SmgcCloneTexture::task_SmgcCloneTexture(uint32_t t_id, uint32_t* t_result): BaseTask(25), id(t_id), result(t_result) {}
+bool taskIs_SmgcCloneTexture(uint32_t taskIdx) {
+    return taskIdx == 25;
+}
+
+task_SmgcTintTexture::task_SmgcTintTexture(uint32_t t_id, uint32_t t_maskId, const glm::vec3& t_color, uint32_t* t_result): BaseTask(26), id(t_id), maskId(t_maskId), color(t_color), result(t_result) {}
+bool taskIs_SmgcTintTexture(uint32_t taskIdx) {
+    return taskIdx == 26;
+}
+
+task_SmgcMergeTextures::task_SmgcMergeTextures(uint32_t t_baseId, uint32_t t_overlayId, const glm::ivec2& t_offset, uint32_t* t_result): BaseTask(27), baseId(t_baseId), overlayId(t_overlayId), offset(t_offset), result(t_result) {}
+bool taskIs_SmgcMergeTextures(uint32_t taskIdx) {
+    return taskIdx == 27;
+}
+
+task_SmgcDrawTexture::task_SmgcDrawTexture(uint32_t t_id, const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color): BaseTask(28), id(t_id), pos(t_pos), size(t_size), color(t_color) {}
+bool taskIs_SmgcDrawTexture(uint32_t taskIdx) {
+    return taskIdx == 28;
+}

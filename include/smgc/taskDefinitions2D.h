@@ -4,9 +4,11 @@
 
 #include <glm/glm.hpp>
 
+#include <cstdint>
 #include <string>
 
 #include "Font.h"
+#include "TextureStore.h"
 
 class task_SmgcDrawRect: public BaseTask {
 public:
@@ -102,3 +104,65 @@ public:
     float* height = nullptr;
 };
 bool taskIs_SmgcMeasureText(uint32_t taskIdx);
+
+class task_SmgcLoadTexture: public BaseTask {
+public:
+    task_SmgcLoadTexture(const std::string& t_path, uint32_t* t_id);
+    std::string path{};
+    uint32_t* id = nullptr;
+};
+bool taskIs_SmgcLoadTexture(uint32_t taskIdx);
+
+class task_SmgcFreeTexture: public BaseTask {
+public:
+    explicit task_SmgcFreeTexture(uint32_t t_id);
+    uint32_t id = kInvalidTexture;
+};
+bool taskIs_SmgcFreeTexture(uint32_t taskIdx);
+
+class task_SmgcGetTextureSize: public BaseTask {
+public:
+    task_SmgcGetTextureSize(uint32_t t_id, int* t_width, int* t_height);
+    uint32_t id = kInvalidTexture;
+    int* width = nullptr;
+    int* height = nullptr;
+};
+bool taskIs_SmgcGetTextureSize(uint32_t taskIdx);
+
+class task_SmgcCloneTexture: public BaseTask {
+public:
+    task_SmgcCloneTexture(uint32_t t_id, uint32_t* t_result);
+    uint32_t id = kInvalidTexture;
+    uint32_t* result = nullptr;
+};
+bool taskIs_SmgcCloneTexture(uint32_t taskIdx);
+
+class task_SmgcTintTexture: public BaseTask {
+public:
+    task_SmgcTintTexture(uint32_t t_id, uint32_t t_maskId, const glm::vec3& t_color, uint32_t* t_result);
+    uint32_t id = kInvalidTexture;
+    uint32_t maskId = kInvalidTexture;
+    glm::vec3 color{1.0f};
+    uint32_t* result = nullptr;
+};
+bool taskIs_SmgcTintTexture(uint32_t taskIdx);
+
+class task_SmgcMergeTextures: public BaseTask {
+public:
+    task_SmgcMergeTextures(uint32_t t_baseId, uint32_t t_overlayId, const glm::ivec2& t_offset, uint32_t* t_result);
+    uint32_t baseId = kInvalidTexture;
+    uint32_t overlayId = kInvalidTexture;
+    glm::ivec2 offset{0};
+    uint32_t* result = nullptr;
+};
+bool taskIs_SmgcMergeTextures(uint32_t taskIdx);
+
+class task_SmgcDrawTexture: public BaseTask {
+public:
+    task_SmgcDrawTexture(uint32_t t_id, const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color = glm::vec4{1.0f});
+    uint32_t id = kInvalidTexture;
+    glm::vec2 pos{};
+    glm::vec2 size{};
+    glm::vec4 color{1.0f};
+};
+bool taskIs_SmgcDrawTexture(uint32_t taskIdx);

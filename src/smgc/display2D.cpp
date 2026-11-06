@@ -97,6 +97,11 @@ int SMGC2D::invalidArgument(const char* function, const char* name, float value)
     return -EINVAL;
 }
 
+int SMGC2D::nullPointer(const char* function) {
+    std::cerr << getPrefix() << "Error in SMGC2D::" << function << ": null pointer\n";
+    return -EINVAL;
+}
+
 int SMGC2D::drawRect(const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
     if (!IsNonNegative(size.x)) return invalidArgument("drawRect", "size.x", size.x);
     if (!IsNonNegative(size.y)) return invalidArgument("drawRect", "size.y", size.y);
@@ -139,6 +144,45 @@ int SMGC2D::drawLine(const glm::vec2& a, const glm::vec2& b, float thickness, co
 int SMGC2D::drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align) {
     if (!IsNonNegative(size)) return invalidArgument("drawText", "size", size);
     layer.pushText(text, pos, size, color, align);
+    return 0;
+}
+int SMGC2D::drawTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+    if (!IsNonNegative(size.x)) return invalidArgument("drawTexture", "size.x", size.x);
+    if (!IsNonNegative(size.y)) return invalidArgument("drawTexture", "size.y", size.y);
+    layer.pushTexture(id, pos, size, color);
+    return 0;
+}
+int SMGC2D::loadTexture(const std::string& path, uint32_t* id) {
+    if (!id) return nullPointer("loadTexture");
+    *id = layer.textureStore().Load(path);
+    if (*id == kInvalidTexture) std::cerr << getPrefix() << "Error in SMGC2D::loadTexture: cannot load \"" << path << "\"" << std::endl;
+    return 0;
+}
+int SMGC2D::freeTexture(uint32_t id) {
+    layer.textureStore().Free(id);
+    return 0;
+}
+int SMGC2D::getTextureSize(uint32_t id, int* width, int* height) {
+    if (!width || !height) return nullPointer("getTextureSize");
+    if (!layer.textureStore().GetSize(id, width, height)) {
+        *width = -1;
+        *height = -1;
+    }
+    return 0;
+}
+int SMGC2D::cloneTexture(uint32_t id, uint32_t* result) {
+    if (!result) return nullPointer("cloneTexture");
+    *result = layer.textureStore().Clone(id);
+    return 0;
+}
+int SMGC2D::tintTexture(uint32_t id, uint32_t maskId, const glm::vec3& color, uint32_t* result) {
+    if (!result) return nullPointer("tintTexture");
+    *result = layer.textureStore().Tint(id, maskId, color);
+    return 0;
+}
+int SMGC2D::mergeTextures(uint32_t baseId, uint32_t overlayId, const glm::ivec2& offset, uint32_t* result) {
+    if (!result) return nullPointer("mergeTextures");
+    *result = layer.textureStore().Merge(baseId, overlayId, offset);
     return 0;
 }
 int SMGC2D::setFont(const std::string& path) {
@@ -226,6 +270,27 @@ int SMGC2D::processTask(std::unique_ptr<BaseTask> task) {
     } else if (taskIs_SmgcDrawText(taskIdx)) {
         auto* typed = static_cast<task_SmgcDrawText*>(task.get());
         return drawText(typed->text, typed->pos, typed->size, typed->color, typed->align);
+    } else if (taskIs_SmgcDrawTexture(taskIdx)) {
+        auto* typed = static_cast<task_SmgcDrawTexture*>(task.get());
+        return drawTexture(typed->id, typed->pos, typed->size, typed->color);
+    } else if (taskIs_SmgcLoadTexture(taskIdx)) {
+        auto* typed = static_cast<task_SmgcLoadTexture*>(task.get());
+        return loadTexture(typed->path, typed->id);
+    } else if (taskIs_SmgcFreeTexture(taskIdx)) {
+        auto* typed = static_cast<task_SmgcFreeTexture*>(task.get());
+        return freeTexture(typed->id);
+    } else if (taskIs_SmgcGetTextureSize(taskIdx)) {
+        auto* typed = static_cast<task_SmgcGetTextureSize*>(task.get());
+        return getTextureSize(typed->id, typed->width, typed->height);
+    } else if (taskIs_SmgcCloneTexture(taskIdx)) {
+        auto* typed = static_cast<task_SmgcCloneTexture*>(task.get());
+        return cloneTexture(typed->id, typed->result);
+    } else if (taskIs_SmgcTintTexture(taskIdx)) {
+        auto* typed = static_cast<task_SmgcTintTexture*>(task.get());
+        return tintTexture(typed->id, typed->maskId, typed->color, typed->result);
+    } else if (taskIs_SmgcMergeTextures(taskIdx)) {
+        auto* typed = static_cast<task_SmgcMergeTextures*>(task.get());
+        return mergeTextures(typed->baseId, typed->overlayId, typed->offset, typed->result);
     } else if (taskIs_SmgcSetFont(taskIdx)) {
         auto* typed = static_cast<task_SmgcSetFont*>(task.get());
         return setFont(typed->path);

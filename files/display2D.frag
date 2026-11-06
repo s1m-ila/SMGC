@@ -6,7 +6,8 @@ flat in int fragShape;
 out vec4 fragColor;
 
 uniform float iOutline;
-uniform sampler2D iFont;
+layout(binding = 0) uniform sampler2D iFont;
+layout(binding = 1) uniform sampler2D iTexture;
 
 #define SHAPE_POLYGON      0
 #define SHAPE_CIRCLE       1
@@ -15,6 +16,7 @@ uniform sampler2D iFont;
 #define SHAPE_RING         4
 #define SHAPE_LINE         5
 #define SHAPE_TEXT         6
+#define SHAPE_TEXTURE      7
 
 #define TEXT_EDGE (128.0 / 255.0)
 
@@ -46,6 +48,13 @@ float lineSDF(vec2 p, vec2 b, float halfThickness) {
 void main() {
     if (iOutline > 0.5) {
         fragColor = vec4(1.0, 0.5, 0.0, 1.0);
+        return;
+    }
+
+    if (fragShape == SHAPE_TEXTURE) {
+        vec4 texel = texture(iTexture, fragLocal) * fragShapeColor;
+        if (texel.a <= 0.0) discard;
+        fragColor = texel;
         return;
     }
 

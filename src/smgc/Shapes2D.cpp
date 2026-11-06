@@ -71,6 +71,17 @@ void Line2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const
     }, a, color, glm::vec4(ab, halfThickness, 0.0f), Shape2D::Line);
 }
 
+void Texture2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+    const GLuint base = static_cast<GLuint>(vertices.size());
+    const GLint shape = static_cast<GLint>(Shape2D::Texture);
+    const glm::vec4 params(0.0f);
+    vertices.push_back({pos,                                   {0.0f, 0.0f}, color, params, shape});
+    vertices.push_back({pos + glm::vec2(size.x, 0.0f),         {1.0f, 0.0f}, color, params, shape});
+    vertices.push_back({pos + size,                            {1.0f, 1.0f}, color, params, shape});
+    vertices.push_back({pos + glm::vec2(0.0f, size.y),         {0.0f, 1.0f}, color, params, shape});
+    indices.insert(indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
+}
+
 static uint32_t NextCodepoint(const std::string& text, size_t& i) {
     const unsigned char lead = static_cast<unsigned char>(text[i++]);
     if (lead < 0x80) return lead;

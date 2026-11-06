@@ -16,6 +16,7 @@
 #include "paletts.h"
 #include "taskDefinitions.h"
 #include "taskDefinitions2D.h"
+#include "TextureStore.h"
 #include "KeySubscription.h"
 #include "Mouse.h"
 
@@ -34,6 +35,13 @@ public:
     int drawRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color);
     int drawLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color);
     int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align);
+    int drawTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color);
+    int loadTexture(const std::string& path, uint32_t* id);
+    int freeTexture(uint32_t id);
+    int getTextureSize(uint32_t id, int* width, int* height);
+    int cloneTexture(uint32_t id, uint32_t* result);
+    int tintTexture(uint32_t id, uint32_t maskId, const glm::vec3& color, uint32_t* result);
+    int mergeTextures(uint32_t baseId, uint32_t overlayId, const glm::ivec2& offset, uint32_t* result);
     int setFont(const std::string& path);
     void setOutline(bool enabled);
     int subscribeKey(int componentIdx, int key);
@@ -46,6 +54,7 @@ public:
     void death() override;
 private:
     int invalidArgument(const char* function, const char* name, float value);
+    int nullPointer(const char* function);
 
     GLFWwindow* window = nullptr;
 
