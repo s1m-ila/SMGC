@@ -1,9 +1,12 @@
+````markdown
 # SMGC
 
 **SMGC** — компоненты графики на OpenGL для ядра [SMPB](https://github.com/s1m-ila/SMPB). Их два:
 
 - **`SMGC`** (3D) открывает окно, принимает от других компонентов сцену в виде списка SDF-объектов (шары, кубы, капсулы, фракталы) и рисует её **гибридным** способом: полигональные прокси-меши отсекают пустое пространство, а на их поверхности запускается ray-marching, который и даёт итоговую картинку.
 - **`SMGC2D`** (2D) рисует плоские фигуры с неподвижной камерой: прямоугольники, треугольники, круги, эллипсы, скруглённые прямоугольники, кольца и отрезки. Фигуры задаются задачами вида «нарисовать круг с таким центром и радиусом» в пиксельных координатах окна. Вся геометрия — полигоны, а скруглённые фигуры вырезаются из квадов фрагментным шейдером. Ещё он выводит текст в UTF-8 (латиница и кириллица) шрифтом TTF.
+
+Оба компонента принимают ввод (клавиши и мышь) и отвечают на запросы: размер окна и размер текста.
 
 ## Содержание
 
@@ -16,6 +19,7 @@
 - [Архитектура](#архитектура)
   - [Протокол задач](#протокол-задач)
   - [Подписка на клавиши](#подписка-на-клавиши)
+  - [Запросы к рендеру](#запросы-к-рендеру)
   - [Атрибуты вершин](#атрибуты-вершин)
   - [Формат объекта `Object`](#формат-объекта-object)
   - [Гибридный рендеринг](#гибридный-рендеринг)
@@ -27,6 +31,7 @@
   - [SMGC2D](#smgc2d)
   - [Layer2D](#layer2d)
   - [Font](#font)
+  - [Mouse](#mouse)
   - [Задачи taskDefinitions.h](#задачи-taskdefinitionsh)
   - [Задачи taskDefinitions2D.h](#задачи-taskdefinitions2dh)
   - [Shader](#shader)
@@ -53,7 +58,9 @@
 - Бесконечный пол в клетку, который всегда следует за камерой.
 - Камера и дальность прорисовки задаются задачами.
 - Подписка на клавиши: SMGC каждый тик сообщает подписчикам, нажаты ли их клавиши. Свободной камерой в примере управляет компонент `Scene3D`.
-- 2D-компонент `SMGC2D`: 7 базовых фигур, координаты в пикселях от левого верхнего угла, прозрачность через альфа-канал, сглаженные края у скруглённых фигур. Каркас и подписка на клавиши работают так же, как в 3D.
+- Мышь: положение курсора, состояние трёх кнопок, нажатия и отпускания в текущем тике и прокрутка колеса. Данные запрашиваются задачей `task_SmgcGetMouse`.
+- Запросы к рендеру: размер окна (`task_SmgcGetWindowSize`) и размер текста при заданном шрифте (`task_SmgcMeasureText`), например для кнопок и выравнивания.
+- 2D-компонент `SMGC2D`: 7 базовых фигур, координаты в пикселях от левого верхнего угла, прозрачность через альфа-канал, сглаженные края у скруглённых фигур. Каркас, подписка на клавиши, мышь и запросы работают так же, как в 3D.
 - Текст: строка UTF-8 с латиницей, кириллицей и типографскими знаками, любой размер, перенос строк через `\n`, выравнивание влево, по центру или вправо. Глифы хранятся в SDF-атласе, поэтому текст остаётся чётким и на 12, и на 100 пикселях. Шрифт по умолчанию — DejaVu Sans, его можно сменить задачей. В `SMGC2D` текст рисуется вместе с фигурами, в `SMGC` — поверх 3D-сцены как HUD.
 - Косинусные палитры `PaletteCosinka` / `PaletteCosinka2` для красивых цветов.
 - Собирается как статические библиотеки `smgc::display3D` и `smgc::display2D` с общей частью `smgc::common` и подключается к другим CMake-проектам через `add_subdirectory` или `FetchContent`.
@@ -88,7 +95,7 @@ cmake --build build
 
 | Цель | Тип | Результат | Описание |
 |------|-----|-----------|----------|
-| `smgc_common` (псевдоним `smgc::common`) | статическая библиотека | `libsmgc_common.a` | Общая часть обоих рендереров: `Shader`, `VAO`, `VBO`, `EBO`, `ObjectsBuffer`, палитры, задачи `taskDefinitions.h` и `taskDefinitions2D.h`, генератор фигур `Shapes2D`, шрифт `Font` (stb_truetype собирается внутри него) и 2D-слой `Layer2D`. Публичные заголовки лежат в `include/smgc/`. smpb, glad, GLFW и GLM подключены как `PUBLIC`-зависимости, поэтому их заголовки и требование C++23 передаются всем, кто линкуется с библиотекой. |
+| `smgc_common` (псевдоним `smgc::common`) | статическая библиотека | `libsmgc_common.a` | Общая часть обоих рендереров: `Shader`, `VAO`, `VBO`, `EBO`, `ObjectsBuffer`, палитры, задачи `taskDefinitions.h` и `taskDefinitions2D.h`, структура `Mouse`, генератор фигур `Shapes2D`, шрифт `Font` (stb_truetype собирается внутри него) и 2D-слой `Layer2D`. Публичные заголовки лежат в `include/smgc/`. smpb, glad, GLFW и GLM подключены как `PUBLIC`-зависимости, поэтому их заголовки и требование C++23 передаются всем, кто линкуется с библиотекой. |
 | `smgc_display3D` (псевдоним `smgc::display3D`) | статическая библиотека | `libsmgc_display3D.a` | 3D-компонент `SMGC` и генератор прокси-мешей `ObjectsGenerator`. Текст поверх сцены `SMGC` рисует через `Layer2D` из общей части. Подключается как `<smgc/display3D.h>`. Линкуется с `smgc::common` как `PUBLIC`. |
 | `smgc_display2D` (псевдоним `smgc::display2D`) | статическая библиотека | `libsmgc_display2D.a` | 2D-компонент `SMGC2D`. Подключается как `<smgc/display2D.h>`. Линкуется с `smgc::common` как `PUBLIC`. |
 | `glad` | статическая библиотека | `libglad.a` | Загрузчик функций OpenGL из `third_party/glad`. Создаётся, только если цели `glad` ещё нет. |
@@ -234,6 +241,8 @@ cd build
 
 Скорость по умолчанию: 3 единицы в секунду и 90° в секунду. Шаг считается как `скорость / TPS`, поэтому скорость камеры не зависит от TPS. Камера стартует в начале координат и смотрит вдоль оси +Z, пол находится на высоте y = −1.
 
+В сцене шесть объектов: шар, два куба, капсула, Mandelbulb и губка Менгера. Шар и два куба вращаются или меняют цвет со временем.
+
 В режиме отладки ядра на каждом тике в лог выводятся `camera.pos` и `camera.rot`. В левом верхнем углу окна `Scene3D` выводит текстом позицию и углы камеры и текущую скорость.
 
 ### 2D: игрок (`Scene2D`)
@@ -284,7 +293,7 @@ LOAD_DLL Base/Userlib.dll
                              └─────────────────┘   KeyState каждый тик
 ```
 
-`example/main.cpp` добавляет в ядро три компонента по порядку: `Config`, `SMGC` и `Scene3D`. На каждом тике `SMGC` рассылает подписчикам состояние клавиш и рисует кадр. Затем `Scene3D` по нажатым клавишам двигает камеру и отправляет в `SMGC` камеру и новую сцену. Поэтому кадр, нарисованный на тике N, показывает камеру и сцену, отправленные на тике N − 1.
+`example/main.cpp` добавляет в ядро три компонента по порядку: `Config`, `SMGC` и `Scene3D`. На каждом тике `SMGC` обрабатывает события окна, рассылает подписчикам состояние клавиш и рисует кадр. Затем `Scene3D` по нажатым клавишам двигает камеру и отправляет в `SMGC` камеру и новую сцену. Поэтому кадр, нарисованный на тике N, показывает камеру и сцену, отправленные на тике N − 1.
 
 2D-пример устроен так же: вместо `SMGC` стоит `SMGC2D`, вместо `Scene3D` — `Scene2D`, а вместо камеры и объектов отправляются задачи фигур (см. [2D-рендерер SMGC2D](#2d-рендерер-smgc2d)).
 
@@ -305,6 +314,9 @@ LOAD_DLL Base/Userlib.dll
 | `task_SmgcSetFont` | `19` | `std::string path` | Загружает другой шрифт TTF для HUD |
 | `task_SmgcSubscribeKey` | `6` | `int key` | Подписывает отправителя на клавишу |
 | `task_SmgcUnsubscribeKey` | `7` | `int key` | Отписывает отправителя от клавиши |
+| `task_SmgcGetWindowSize` | `10` | `int* width`, `int* height` | Записывает в `*width` и `*height` размеры framebuffer (см. [Запросы к рендеру](#запросы-к-рендеру)) |
+| `task_SmgcGetMouse` | `20` | `Mouse* mouse` | Записывает в `*mouse` текущее состояние мыши (см. [Запросы к рендеру](#запросы-к-рендеру)) |
+| `task_SmgcMeasureText` | `21` | `std::string text`, `float size`, `float* width`, `float* height` | Записывает в `*width` и `*height` размеры текста при текущем шрифте HUD. Возвращает `-EINVAL` для недопустимого `size` или нулевого указателя |
 
 В обратную сторону `SMGC` отправляет подписчикам одну задачу:
 
@@ -328,11 +340,34 @@ sendTask(std::make_unique<task_SmgcSwapObjects>(), "SMGC");
 ### Подписка на клавиши
 
 - Компонент отправляет в `SMGC` задачу `task_SmgcSubscribeKey` с кодом клавиши GLFW (`GLFW_KEY_*`). `SMGC` запоминает пару «id отправителя, клавиша». Допустимы коды от `GLFW_KEY_SPACE` до `GLFW_KEY_LAST`, для остальных возвращается `-EINVAL`. Повторная подписка на ту же клавишу ничего не меняет.
-- Каждый тик перед отрисовкой `SMGC` отправляет каждому подписчику `task_SmgcKeyState` на каждую его клавишу. Задача адресуется по id компонента через `sendTask(task, int workerIdx)` из smpb. Состояние берётся из `glfwGetKey` после последнего `glfwPollEvents`.
+- Каждый тик перед отрисовкой `SMGC` отправляет каждому подписчику `task_SmgcKeyState` на каждую его клавишу. Задача адресуется по id компонента через `sendTask(task, int workerIdx)` из smpb. Состояние берётся из `glfwGetKey` после `glfwPollEvents` этого же тика.
 - Подписчик **обязан** отозвать все подписки в `death()` задачей `task_SmgcUnsubscribeKey`. id компонента в smpb — это номер слота, и после удаления компонента его слот может занять новый компонент. Неотозванная подписка начнёт слать задачи ему.
 - Отписка от клавиши, на которую не было подписки, ничего не делает. В `death()` самого `SMGC` все подписки сбрасываются.
 - При остановке ядро smpb завершает компоненты в обратном порядке, поэтому `Scene3D`, добавленный после `SMGC`, успевает отписаться, пока `SMGC` ещё работает.
 - `SMGC2D` поддерживает те же задачи подписки и работает по тем же правилам.
+
+### Запросы к рендеру
+
+Три задачи ничего не рисуют, а возвращают данные: `task_SmgcGetWindowSize` (`10`), `task_SmgcGetMouse` (`20`) и `task_SmgcMeasureText` (`21`). Их понимают и `SMGC`, и `SMGC2D`. Задача хранит **указатели** на переменные отправителя, а получатель записывает результат прямо в них. `sendTask` доставляет задачу синхронно, поэтому значения готовы сразу после его возврата. Указатели должны быть ненулевыми и оставаться действительными до возврата из `sendTask`.
+
+```cpp
+int width = 0, height = 0;
+sendTask(std::make_unique<task_SmgcGetWindowSize>(&width, &height), "SMGC2D");
+
+Mouse mouse{};
+sendTask(std::make_unique<task_SmgcGetMouse>(&mouse), "SMGC2D");
+
+float textWidth = 0.0f, textHeight = 0.0f;
+sendTask(std::make_unique<task_SmgcMeasureText>("Привет", 24.0f, &textWidth, &textHeight), "SMGC2D");
+```
+
+**Размер окна.** `width` и `height` — размер framebuffer в пикселях. Значения обновляются при растягивании окна.
+
+**Мышь.** Структура [`Mouse`](#mouse) описывает состояние мыши на текущий тик компонента рендера. В начале каждого тика он сбрасывает одноразовые события (`press`, `release`, `wheelMove`), затем вызывает `glfwPollEvents`, и колбэки GLFW накапливают нажатия, отпускания и прокрутку. После этого обновляются позиция курсора и состояние кнопок. Компонент сцены добавляется после компонента рендера, поэтому на своём тике он видит события, накопленные на этом же тике, и каждое нажатие или отпускание ему видно ровно один раз.
+
+Кнопки в векторах `state`, `press` и `release` идут в таком порядке: `x` — левая, `y` — средняя (колесо), `z` — правая. Значение `1` означает «да», `0` — «нет». Позиция `pos` задаётся в пикселях от левого верхнего угла окна. Если курсор вне окна, `SMGC2D` сообщает позицию (0, 0).
+
+**Размер текста.** `task_SmgcMeasureText` измеряет текст тем же способом, каким его рисует `task_SmgcDrawText`, и с текущим шрифтом компонента: с учётом UTF-8, переносов строк `\n` и кернинга. В `width` пишется ширина самой широкой строки, в `height` — число строк, умноженное на межстрочный интервал. Для пустой строки или незагруженного шрифта обе величины равны 0. Если `size` не конечный или меньше 0, либо один из указателей нулевой, задача возвращает `-EINVAL`, а в лог выводится ошибка.
 
 ### Атрибуты вершин
 
@@ -483,10 +518,12 @@ Uniform-переменные, которые `SMGC` задаёт каждый к
 | `task_SmgcSetOutline` | `3` | Включает или выключает оранжевый каркас. По умолчанию включён |
 | `task_SmgcSubscribeKey` / `task_SmgcUnsubscribeKey` | `6` / `7` | Подписка на клавиши, как у `SMGC` |
 | `task_SmgcKeyState` | `8` | Отправляется подписчикам каждый тик, как у `SMGC` |
+| `task_SmgcGetWindowSize` | `10` | Записывает размер framebuffer по указателям, как у `SMGC` |
+| `task_SmgcGetMouse` | `20` | Записывает состояние мыши по указателю, как у `SMGC` |
 
 Остальные задачи 3D (`PushObject`, `SetCamera`, `SetMaxDist`, `SetShadows`) `SMGC2D` молча игнорирует.
 
-Задачи фигур из `taskDefinitions2D.h`. Каждая добавляет фигуру в буфер B, цвет у всех — RGBA `glm::vec4` с компонентами от 0 до 1:
+Задачи фигур и текста из `taskDefinitions2D.h`. Каждая задача рисования добавляет фигуру в буфер B, цвет у всех — RGBA `glm::vec4` с компонентами от 0 до 1:
 
 | Задача | `taskIdx` | Данные | Фигура |
 |--------|-----------|--------|--------|
@@ -499,6 +536,7 @@ Uniform-переменные, которые `SMGC` задаёт каждый к
 | `task_SmgcDrawLine` | `17` | `glm::vec2 a, b`, `float thickness`, `glm::vec4 color` | Отрезок от `a` до `b` со скруглёнными концами. При `thickness = 0` рисуется сглаженная линия толщиной около 1 пикселя |
 | `task_SmgcDrawText` | `18` | `std::string text`, `glm::vec2 pos`, `float size`, `glm::vec4 color`, `TextAlign align = TextAlign::Left` | Текст, см. [Текст](#текст) |
 | `task_SmgcSetFont` | `19` | `std::string path` | Загружает другой шрифт TTF. Если файл не открылся или это не TTF, возвращает ошибку и оставляет прежний шрифт |
+| `task_SmgcMeasureText` | `21` | `std::string text`, `float size`, `float* width`, `float* height` | Измеряет текст, см. [Запросы к рендеру](#запросы-к-рендеру) |
 
 Размеры, радиусы и толщины должны быть конечными и не меньше 0. Иначе задача возвращает `-EINVAL`, пишет ошибку в лог, и фигура не добавляется.
 
@@ -592,11 +630,13 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 
 **Как это работает.** `Font::Load` читает файл TTF и для каждого символа строит через stb_truetype SDF-битмап размером 48 пикселей с полем в 8 пикселей. Все битмапы укладываются в одну текстуру `GL_R8` шириной 1024 пикселя. Значение 128 в атласе — граница глифа, больше — внутри. `Text2D` раскладывает строку и добавляет на каждый видимый глиф квад с координатами атласа в `local`. Фрагментный шейдер переводит значение атласа в расстояние до края в пикселях экрана и считает покрытие так же, как у остальных SDF-фигур, поэтому текст сглажен на любом размере. Пробелы квадов не получают, а только сдвигают перо.
 
+**Измерение.** Размер текста до отрисовки можно узнать задачей `task_SmgcMeasureText` (см. [Запросы к рендеру](#запросы-к-рендеру)). Она использует ту же раскладку, что и `Text2D`, поэтому ширина и высота совпадают с тем, что будет нарисовано: ширина — самая широкая строка, высота — число строк, умноженное на межстрочный интервал. Это удобно для кнопок, рамок и выравнивания по центру.
+
 **Шрифт.** При инициализации загружается `files/DejaVuSans.ttf`, без него компонент не запустится. Задача `task_SmgcSetFont` с путём к другому файлу TTF перестраивает атлас. Если загрузка не удалась, задача возвращает `-ENOENT` (файл не открылся) или `-EINVAL` (не TTF), а прежний шрифт остаётся. Текст, уже собранный в буферах A и B, хранит координаты старого атласа, поэтому шрифт лучше менять до `Clear`, а до следующего `Swap` текст на экране может выглядеть неверно.
 
 ### Текст поверх 3D-сцены
 
-`SMGC` принимает `task_SmgcDrawText` и `task_SmgcSetFont` и рисует текст как HUD: в пикселях окна, поверх 3D-сцены, без теста глубины. Для этого у него есть свой `Layer2D` (`overlay`) с 2D-шейдерами и шрифтом:
+`SMGC` принимает `task_SmgcDrawText`, `task_SmgcSetFont` и `task_SmgcMeasureText` и рисует текст как HUD: в пикселях окна, поверх 3D-сцены, без теста глубины. Для этого у него есть свой `Layer2D` (`overlay`) с 2D-шейдерами и шрифтом:
 
 - `task_SmgcClearObjects` очищает и текст, `task_SmgcSwapObjects` показывает его вместе с новой сценой. Поэтому текст отправляется между `Clear` и `Swap`, как объекты;
 - текст рисуется в конце `draw()`, после каркаса. Каркас текста включается и выключается той же задачей `task_SmgcSetOutline`;
@@ -608,7 +648,7 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 
 `include/smgc/display3D.h`, `src/smgc/display3D.cpp` — наследник `BaseComponent`, имя компонента `"SMGC"`.
 
-Компонент рендера: окно, контекст OpenGL, камера, буферы сцены и отрисовка.
+Компонент рендера: окно, контекст OpenGL, камера, буферы сцены, мышь и отрисовка.
 
 #### Структура Camera
 
@@ -649,13 +689,14 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `maxDist` | `float` | `50.0` | Дальность прорисовки и отсечения, размер `AntiCube` и пола |
 | `epsilon` | `float` | `0.0005` | Точность ray-marching и толщина прокси пола |
 | `windowWidth`, `windowHeight` | `int` | `800` | Размер framebuffer. После создания окна берётся из `glfwGetFramebufferSize`, обновляется при растягивании |
+| `mouse` | `Mouse` | нули | Состояние мыши, которое отдаёт `task_SmgcGetMouse` |
 
 #### Методы
 
 | Метод | Описание |
 |-------|----------|
 | `SMGC()` | Конструктор. Задаёт имя `"SMGC"`. |
-| `int init() override` | Инициализирует GLFW, создаёт окно с контекстом OpenGL 4.4 core и колбэком на изменение размера, загружает glad, включает тест глубины и отсечение задних граней, компилирует шейдеры, создаёт VAO, VBO, EBO и SSBO и связывает атрибуты: 0 — `pos`, 1 — `attached`, 2 — `objectIdx`, 3 — `polygonal`. Затем инициализирует `overlay`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, код ошибки шейдера или код ошибки `overlay.init()`. |
+| `int init() override` | Инициализирует GLFW, создаёт окно с контекстом OpenGL 4.4 core и колбэками на кнопки мыши, прокрутку и изменение размера, загружает glad, включает тест глубины и отсечение задних граней, компилирует шейдеры, создаёт VAO, VBO, EBO и SSBO и связывает атрибуты: 0 — `pos`, 1 — `attached`, 2 — `objectIdx`, 3 — `polygonal`. Затем инициализирует `overlay`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, код ошибки шейдера или код ошибки `overlay.init()`. |
 | `void windowResize()` | Вызывается при изменении размера окна. Пока пустой. |
 | `void swapObjects()` | Меняет местами буферы A и B и загружает вершины и индексы A в VBO и EBO. Перед загрузкой отвязывает VAO. Затем меняет буферы `overlay`. |
 | `void clearObjects()` | Очищает буфер B и добавляет в него `AntiCube` вокруг камеры (`objectIdx = -2`) и прокси пола `Plane` (`objectIdx = -1`). Очищает буфер B `overlay`. |
@@ -667,11 +708,12 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `void setCamera(const Camera& newCamera)` | Задаёт камеру. |
 | `int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align)` | Добавляет текст в буфер B `overlay`. Возвращает `0` или `-EINVAL`, если `size` не конечный или меньше 0. |
 | `int setFont(const std::string& path)` | Загружает шрифт в `overlay`. Возвращает `0` или код ошибки `Font::Load`, при ошибке пишет в лог и оставляет прежний шрифт. |
+| `int measureText(const std::string& text, float size, float* width, float* height)` | Измеряет текст шрифтом `overlay` и записывает ширину и высоту по указателям. Возвращает `0` или `-EINVAL`, если `size` не конечный или меньше 0 либо один из указателей нулевой. |
 | `int subscribeKey(int componentIdx, int key)` | Добавляет подписку, если её ещё нет. Возвращает `0` или `-EINVAL` для недопустимого кода клавиши. |
 | `int unsubscribeKey(int componentIdx, int key)` | Удаляет подписку, если она есть. Возвращает `0`. |
 | `void sendKeyStates()` | Отправляет `task_SmgcKeyState` по каждой подписке. Перебирает копию списка, поэтому подписчик может отписаться прямо в обработчике задачи. |
-| `int processTask(std::unique_ptr<BaseTask> task) override` | Выбирает обработчик по `taskIdx`. Для подписки и отписки id подписчика берётся из `getCreatorIdx()` задачи. Возвращает код обработчика: `0`, или `-EINVAL` для недопустимой дальности или клавиши. |
-| `int tick(long long tickCounter) override` | Если окно закрыто, вызывает `Core_stop()`. Иначе рассылает состояние клавиш, в режиме отладки выводит камеру, рисует кадр, меняет буферы окна и обрабатывает события. Возвращает `0` или код ошибки `draw()`. |
+| `int processTask(std::unique_ptr<BaseTask> task) override` | Выбирает обработчик по `taskIdx`. Для подписки и отписки id подписчика берётся из `getCreatorIdx()` задачи. Задачи `GetWindowSize` и `GetMouse` записывают результат по указателям из задачи. Возвращает код обработчика: `0`, или `-EINVAL` для недопустимой дальности, клавиши или аргументов `MeasureText`. |
+| `int tick(long long tickCounter) override` | Сбрасывает одноразовые события мыши и вызывает `glfwPollEvents`. Если окно закрыто, вызывает `Core_stop()`. Иначе обновляет позицию курсора и состояние кнопок, рассылает состояние клавиш, в режиме отладки выводит камеру, рисует кадр и меняет буферы окна. Возвращает `0` или код ошибки `draw()`. |
 | `void death() override` | Сбрасывает подписки, удаляет буферы, шейдер и `overlay`, закрывает окно, завершает GLFW и вызывает `Core_stop()`: без окна программа дальше не работает. |
 
 ---
@@ -680,7 +722,7 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 
 `include/smgc/display2D.h`, `src/smgc/display2D.cpp` — наследник `BaseComponent`, имя компонента `"SMGC2D"`.
 
-2D-компонент рендера: окно, контекст OpenGL, подписки на клавиши и задачи. Шейдер, буферы фигур и шрифт принадлежат `Layer2D`. Подписки на клавиши хранятся в `KeySubscription`, как у `SMGC`.
+2D-компонент рендера: окно, контекст OpenGL, подписки на клавиши, мышь и задачи. Шейдер, буферы фигур и шрифт принадлежат `Layer2D`. Подписки на клавиши хранятся в `KeySubscription`, как у `SMGC`.
 
 #### Поля (private)
 
@@ -691,13 +733,14 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `keySubscriptions` | `std::vector<KeySubscription>` | пусто | Подписки на клавиши |
 | `outlineEnabled` | `bool` | `true` | Рисовать ли каркас |
 | `windowWidth`, `windowHeight` | `int` | `800` | Размер framebuffer. После создания окна берётся из `glfwGetFramebufferSize`, обновляется при растягивании |
+| `mouse` | `Mouse` | нули | Состояние мыши, которое отдаёт `task_SmgcGetMouse` |
 
 #### Методы
 
 | Метод | Описание |
 |-------|----------|
 | `SMGC2D()` | Конструктор. Задаёт имя `"SMGC2D"`. |
-| `int init() override` | Инициализирует GLFW, создаёт окно `SMGC2D` с контекстом OpenGL 4.4 core и колбэком на изменение размера, загружает glad и инициализирует `layer`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, или код ошибки `layer.init()`. |
+| `int init() override` | Инициализирует GLFW, создаёт окно `SMGC2D` с контекстом OpenGL 4.4 core и колбэками на кнопки мыши, прокрутку и изменение размера, загружает glad и инициализирует `layer`. В конце собирает и показывает пустую сцену. Возвращает `0`, `-ENODEV`, если не удалось создать окно или загрузить glad, или код ошибки `layer.init()`. |
 | `void swapShapes()` | Меняет местами буферы A и B и загружает вершины и индексы A в VBO и EBO. Перед загрузкой отвязывает VAO. Обработчик `task_SmgcSwapObjects`. |
 | `void clearShapes()` | Очищает буфер B. Обработчик `task_SmgcClearObjects`. |
 | `int drawRect(const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color)` | Добавляет прямоугольник в буфер B. |
@@ -709,17 +752,18 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `int drawLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color)` | Добавляет отрезок. |
 | `int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align)` | Добавляет текст. |
 | `int setFont(const std::string& path)` | Загружает шрифт. Возвращает `0` или код ошибки `Font::Load`, при ошибке пишет в лог и оставляет прежний шрифт. |
+| `int measureText(const std::string& text, float size, float* width, float* height)` | Измеряет текст шрифтом `layer` и записывает ширину и высоту по указателям. Возвращает `0` или `-EINVAL`, если `size` не конечный или меньше 0 либо один из указателей нулевой. |
 | `void setOutline(bool enabled)` | Включает или выключает каркас. |
 | `int subscribeKey(int componentIdx, int key)` | Как у `SMGC`. |
 | `int unsubscribeKey(int componentIdx, int key)` | Как у `SMGC`. |
 | `void sendKeyStates()` | Как у `SMGC`. |
 | `int draw()` | Очищает экран в чёрный и рисует `layer` с каркасом, если он включён (см. [Как рисуются фигуры](#как-рисуются-фигуры)). Возвращает `0`. |
-| `int processTask(std::unique_ptr<BaseTask> task) override` | Выбирает обработчик по `taskIdx`. Возвращает код обработчика: `0` или `-EINVAL`. |
-| `int tick(long long tickCounter) override` | Если окно закрыто, вызывает `Core_stop()`. Иначе рассылает состояние клавиш, рисует кадр, меняет буферы окна и обрабатывает события. Возвращает `0` или код ошибки `draw()`. |
+| `int processTask(std::unique_ptr<BaseTask> task) override` | Выбирает обработчик по `taskIdx`. Задачи `GetWindowSize` и `GetMouse` записывают результат по указателям из задачи. Возвращает код обработчика: `0` или `-EINVAL`. |
+| `int tick(long long tickCounter) override` | Сбрасывает одноразовые события мыши и вызывает `glfwPollEvents`. Если окно закрыто, вызывает `Core_stop()`. Иначе обновляет позицию курсора и состояние кнопок, рассылает состояние клавиш, рисует кадр и меняет буферы окна. Возвращает `0` или код ошибки `draw()`. |
 | `void death() override` | Сбрасывает подписки, удаляет `layer`, закрывает окно, завершает GLFW и вызывает `Core_stop()`. |
 | `int invalidArgument(const char* function, const char* name, float value)` (private) | Пишет в `cerr` ошибку о недопустимом аргументе и возвращает `-EINVAL`. |
 
-Все методы `draw*`, кроме `drawTriangle`, проверяют, что размеры, радиусы и толщины конечные и не меньше 0, и возвращают `0` или `-EINVAL`.
+Все методы `draw*` и `measureText`, кроме `drawTriangle`, проверяют, что размеры, радиусы и толщины конечные и не меньше 0, и возвращают `0` или `-EINVAL`.
 
 ---
 
@@ -741,6 +785,7 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `void clear()` | Очищает буфер B. |
 | `void swap()` | Меняет буферы A и B местами и загружает A в VBO и EBO. Перед загрузкой отвязывает VAO. |
 | `void pushRect`, `pushTriangle`, `pushCircle`, `pushEllipse`, `pushRoundedRect`, `pushRing`, `pushLine`, `pushText` | Добавляют фигуру или текст в буфер B через функции `Shapes2D.h`. Аргументы такие же, как у задач. |
+| `TextMetrics measureText(const std::string& text, float size) const` | Измеряет текст текущим шрифтом через `MeasureText2D` и возвращает `TextMetrics`. |
 | `int setFont(const std::string& path)` | `font.Load(path)`. |
 | `void draw(int width, int height, bool outline)` | Если буфер A пуст, ничего не делает. Иначе выключает тест глубины и отсечение граней, включает смешивание, задаёт `iResolution`, привязывает атлас к блоку 0 и рисует заливку и, если `outline`, каркас. Потом возвращает тест глубины, отсечение и смешивание в прежнее состояние, поэтому слой можно рисовать поверх 3D-сцены. |
 | `void destroy()` | Удаляет буферы, шейдер и текстуру шрифта. |
@@ -780,6 +825,22 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 
 ---
 
+### Mouse
+
+`include/smgc/Mouse.h`. Состояние мыши, которое компоненты рендера отдают задаче `task_SmgcGetMouse`. Заголовок подключается через `taskDefinitions.h`, поэтому доступен после `<smgc/display2D.h>` и `<smgc/display3D.h>`. Порядок и правила обновления описаны в [Запросы к рендеру](#запросы-к-рендеру).
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `pos` | `glm::vec2` | Позиция курсора в пикселях окна от левого верхнего угла |
+| `state` | `glm::vec3` | Кнопки сейчас: `x` — левая, `y` — средняя (колесо), `z` — правая. `1` — нажата, `0` — нет |
+| `press` | `glm::vec3` | `1` у кнопки, которая была нажата в этом тике. Порядок тот же |
+| `release` | `glm::vec3` | `1` у кнопки, которая была отпущена в этом тике. Порядок тот же |
+| `wheelMove` | `float` | Вертикальная прокрутка колеса за этот тик (сумма `yoffset` из GLFW) |
+
+Структура определяет `operator==` и `operator!=`, которые сравнивают все поля.
+
+---
+
 ### Задачи taskDefinitions.h
 
 `include/smgc/taskDefinitions.h`, `src/smgc/taskDefinitions.cpp`. Все задачи — наследники `BaseTask` из smpb.
@@ -796,14 +857,14 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `task_SmgcUnsubscribeKey(int t_key)` | `7` | `int key` | `bool taskIs_SmgcUnsubscribeKey(uint32_t taskIdx)` |
 | `task_SmgcKeyState(int t_key, bool t_pressed)` | `8` | `int key`, `bool pressed` | `bool taskIs_SmgcKeyState(uint32_t taskIdx)` |
 | `task_SmgcSetShadows(bool t_enabled)` | `9` | `bool enabled` | `bool taskIs_SmgcSetShadows(uint32_t taskIdx)` |
-
-`taskIdx` `10` раньше занимала глобальная `task_SmgcSetRaymarching`, сейчас он свободен.
+| `task_SmgcGetWindowSize(int* t_width, int* t_height)` | `10` | `int* width`, `int* height` | `bool taskIs_SmgcGetWindowSize(uint32_t taskIdx)` |
+| `explicit task_SmgcGetMouse(Mouse* t_mouse)` | `20` | `Mouse* mouse` | `bool taskIs_SmgcGetMouse(uint32_t taskIdx)` |
 
 ---
 
 ### Задачи taskDefinitions2D.h
 
-`include/smgc/taskDefinitions2D.h`, `src/smgc/taskDefinitions2D.cpp`, библиотека `smgc::common`. Задачи фигур и текста, наследники `BaseTask`. Фигуры принимает `SMGC2D`, текст и шрифт — `SMGC2D` и `SMGC`. Их `taskIdx` продолжают нумерацию `taskDefinitions.h`.
+`include/smgc/taskDefinitions2D.h`, `src/smgc/taskDefinitions2D.cpp`, библиотека `smgc::common`. Задачи фигур и текста, наследники `BaseTask`. Фигуры принимает `SMGC2D`, текст, шрифт и измерение текста — `SMGC2D` и `SMGC`. Их `taskIdx` продолжают нумерацию `taskDefinitions.h`.
 
 | Класс | `taskIdx` | Поля | Проверка |
 |-------|-----------|------|----------|
@@ -816,6 +877,7 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `task_SmgcDrawLine(const glm::vec2& t_a, const glm::vec2& t_b, float t_thickness, const glm::vec4& t_color)` | `17` | `glm::vec2 a`, `b`, `float thickness`, `glm::vec4 color` | `bool taskIs_SmgcDrawLine(uint32_t taskIdx)` |
 | `task_SmgcDrawText(const std::string& t_text, const glm::vec2& t_pos, float t_size, const glm::vec4& t_color, TextAlign t_align = TextAlign::Left)` | `18` | `std::string text`, `glm::vec2 pos`, `float size`, `glm::vec4 color`, `TextAlign align` | `bool taskIs_SmgcDrawText(uint32_t taskIdx)` |
 | `task_SmgcSetFont(const std::string& t_path)` | `19` | `std::string path` | `bool taskIs_SmgcSetFont(uint32_t taskIdx)` |
+| `task_SmgcMeasureText(const std::string& t_text, float t_size, float* t_width, float* t_height)` | `21` | `std::string text`, `float size`, `float* width`, `float* height` | `bool taskIs_SmgcMeasureText(uint32_t taskIdx)` |
 
 ---
 
@@ -847,7 +909,7 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 |-------|----------|
 | `VAO()` | Создаёт VAO. |
 | `void LinkVBO(VBO& VBO, GLuint layout, GLuint layoutAttached, GLuint layoutObjectIdx, GLuint layoutPolygonal)` | Связывает атрибуты `Vertex::pos` (`vec3`), `Vertex::attached` (`float`), `Vertex::objectIdx` (`int`, через `glVertexAttribIPointer`) и `Vertex::polygonal` (`float`) с указанными location. `SMGC` использует location 0, 1, 2 и 3. |
-| `void LinkAttrib(VBO& VBO, GLuint layout, GLint numComponents, GLenum type, GLsizei stride, const void* offset)` | Связывает один атрибут с плавающей точкой (`glVertexAttribPointer`, без нормализации) для произвольной структуры вершины. `SMGC2D` связывает так поля `Vertex2D`. |
+| `void LinkAttrib(VBO& VBO, GLuint layout, GLint numComponents, GLenum type, GLsizei stride, const void* offset)` | Связывает один атрибут с плавающей точкой (`glVertexAttribPointer`, без нормализации) для произвольной структуры вершины. `Layer2D` связывает так поля `Vertex2D`. |
 | `void LinkAttribI(VBO& VBO, GLuint layout, GLint numComponents, GLenum type, GLsizei stride, const void* offset)` | То же для целочисленного атрибута (`glVertexAttribIPointer`). |
 | `void Bind()`, `void Unbind()`, `void Delete()` | Привязать, отвязать, удалить. |
 
@@ -923,6 +985,17 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 | `void Ring2D(vertices, indices, const glm::vec2& center, float radius, float thickness, const glm::vec4& color)` | Квад `center ± (radius + 1)`, `Shape2D::Ring`. Толщина ограничивается радиусом |
 | `void Line2D(vertices, indices, const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color)` | Квад вдоль `b − a`, расширенный на `thickness / 2 + 1` во все стороны, `Shape2D::Line`. При `a = b` получается круг диаметром `thickness` |
 | `void Text2D(vertices, indices, const Font& font, const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align)` | Квад на каждый видимый глиф, `Shape2D::Text`. Декодирует UTF-8, переносит строки по `\n`, применяет кернинг и выравнивание. Ничего не добавляет, если шрифт не загружен |
+| `TextMetrics MeasureText2D(const Font& font, const std::string& text, float size)` | Размеры текста с той же раскладкой, что у `Text2D`. Возвращает нули, если шрифт не загружен или строка пустая |
+
+Структура `TextMetrics`:
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `width` | `float` | Ширина самой широкой строки в пикселях |
+| `height` | `float` | Общая высота: число строк × межстрочный интервал |
+| `ascent` | `float` | Подъём над базовой линией первой строки |
+
+Задача `task_SmgcMeasureText` отдаёт отправителю только `width` и `height`.
 
 Структура вершины `Vertex2D`:
 
@@ -953,7 +1026,8 @@ sendTask(std::make_unique<task_SmgcDrawText>("Привет, мир!\nВтора�
 - **Логи.** Информационные сообщения пишутся в `std::clog`, ошибки в `std::cerr`, сообщения компонента начинаются с `getPrefix()`. Комментарии и логи пишутся на русском или английском, в зависимости от окружающего кода.
 - **Заголовки** подключаются с префиксом: `<smgc/X.h>`, `<smpb/X.h>`.
 - **Новые файлы** `.cpp` и `.h` добавляются в список исходников `CMakeLists.txt` вручную, поиска по маске нет.
-- **Новая задача** получает уникальный `taskIdx` (общий для `taskDefinitions.h` и `taskDefinitions2D.h`), функцию `taskIs_*` и ветку в `processTask` нужного компонента: `SMGC` или `SMGC2D`.
+- **Новая задача** получает уникальный `taskIdx` (общий для `taskDefinitions.h` и `taskDefinitions2D.h`; занятые значения — `0`–`21`), функцию `taskIs_*` и ветку в `processTask` нужного компонента: `SMGC` или `SMGC2D`.
+- **Задачи-запросы** (`GetWindowSize`, `GetMouse`, `MeasureText`) возвращают данные через указатели в полях задачи. Результат готов после возврата из `sendTask`, а указатели должны быть ненулевыми.
 - **Новый тип объекта** добавляется в 3 места: SDF в `default.frag` (`map`), прокси-меш в `GenerateObject` и радиус в `ObjectBoundingRadius`. Прокси обязан охватывать SDF.
 - **Новая 2D-фигура** добавляется в 5 мест: значение в `Shape2D` и такой же `SHAPE_*` с SDF в `display2D.frag`, генератор в `Shapes2D`, задача в `taskDefinitions2D` и метод `draw*` в `SMGC2D`. Квад SDF-фигуры обязан охватывать её с запасом в 1 пиксель для сглаживания.
 - **Текст.** Граница глифа в атласе — значение 128: `kOnEdge` в `Font.cpp` и `TEXT_EDGE` в `display2D.frag` должны совпадать. Новые символы добавляются диапазоном в `kRanges` в `Font.cpp`.
@@ -1062,6 +1136,66 @@ int main(int argc, char *argv[]) {
 
 Стрелка задаётся двумя точками, поэтому для неё не нужен поворот: при y, направленном вниз, вектор `(sin t, −cos t)` в момент 0 смотрит вверх и вращается по часовой стрелке.
 
+### 2D: кнопка с мышью
+
+Кнопка в центре окна, размер которой подгоняется под текст. Она подсвечивается при наведении, а каждое нажатие левой кнопки увеличивает счётчик:
+
+```cpp
+#include <smpb/Core.h>
+#include <smpb/Config.h>
+#include <smgc/display2D.h>
+
+#include <format>
+#include <string>
+
+class Button : public BaseComponent {
+public:
+    Button() : BaseComponent("Button") {}
+
+    int init() override {
+        return sendTask(std::make_unique<task_SmgcSetOutline>(false), "SMGC2D");
+    }
+
+    int tick(long long) override {
+        Mouse mouse{};
+        sendTask(std::make_unique<task_SmgcGetMouse>(&mouse), "SMGC2D");
+
+        const std::string label = std::format("Нажатий: {}", clicks);
+        float textWidth = 0.0f, textHeight = 0.0f;
+        sendTask(std::make_unique<task_SmgcMeasureText>(label, 32.0f, &textWidth, &textHeight), "SMGC2D");
+
+        glm::vec2 size{textWidth + 40.0f, textHeight + 20.0f};
+        glm::vec2 pos{400.0f - size.x * 0.5f, 400.0f - size.y * 0.5f};
+
+        bool hover = mouse.pos.x >= pos.x && mouse.pos.x <= pos.x + size.x
+                  && mouse.pos.y >= pos.y && mouse.pos.y <= pos.y + size.y;
+        if (hover && mouse.press.x > 0.5f) clicks++;
+
+        glm::vec4 color = hover ? glm::vec4{0.3f, 0.6f, 1.0f, 1.0f} : glm::vec4{0.2f, 0.3f, 0.5f, 1.0f};
+
+        sendTask(std::make_unique<task_SmgcClearObjects>(), "SMGC2D");
+        sendTask(std::make_unique<task_SmgcDrawRoundedRect>(pos, size, 12.0f, color), "SMGC2D");
+        sendTask(std::make_unique<task_SmgcDrawText>(label, glm::vec2{400.0f, pos.y + 10.0f}, 32.0f, glm::vec4{1.0f}, TextAlign::Center), "SMGC2D");
+        sendTask(std::make_unique<task_SmgcSwapObjects>(), "SMGC2D");
+        return 0;
+    }
+private:
+    int clicks = 0;
+};
+
+int main(int argc, char *argv[]) {
+    Core core;
+    core.appendComponent(std::make_unique<Config>(argc, argv));
+    core.appendComponent(std::make_unique<SMGC2D>());
+    core.appendComponent(std::make_unique<Button>());
+
+    core.init();
+    return core.cycle();
+}
+```
+
+Компонент `Button` добавляется после `SMGC2D`, поэтому на своём тике видит события мыши, накопленные на этом же тике, и каждое нажатие считается один раз.
+
 ## Структура проекта
 
 ```
@@ -1073,9 +1207,10 @@ smgc/
 │   ├── display2D.h             Компонент SMGC2D, подключает все заголовки 2D
 │   ├── Camera.h                Структура Camera
 │   ├── KeySubscription.h       Структура KeySubscription, общая для SMGC и SMGC2D
-│   ├── taskDefinitions.h       Задачи SMGC: сцена, камера, настройки, подписка на клавиши
-│   ├── taskDefinitions2D.h     Задачи фигур, текста и шрифта
-│   ├── Shapes2D.h              Структура Vertex2D, enum Shape2D и генераторы 2D-фигур и текста
+│   ├── Mouse.h                 Структура Mouse: состояние мыши для task_SmgcGetMouse
+│   ├── taskDefinitions.h       Задачи SMGC: сцена, камера, настройки, подписка на клавиши, запросы размера окна и мыши
+│   ├── taskDefinitions2D.h     Задачи фигур, текста, шрифта и измерения текста
+│   ├── Shapes2D.h              Структуры Vertex2D и TextMetrics, enum Shape2D и генераторы 2D-фигур и текста
 │   ├── Font.h                  Шрифт TTF и SDF-атлас глифов, enum TextAlign
 │   ├── Layer2D.h               2D-слой: шейдер, буферы, шрифт; общий для SMGC2D и HUD в SMGC
 │   ├── ObjectsBuffer.h         Структуры Object и GpuObject, SSBO
@@ -1103,7 +1238,7 @@ smgc/
 ├── example/                  Программа smgc
 │   ├── main.cpp                Точка входа: Config → SMGC2D → Scene2D или Config → SMGC → Scene3D, выбор через SMGC_EXAMPLE_DIMENSION
 │   ├── Scene3D.h
-│   ├── Scene3D.cpp             3D-сцена: камера с клавиатуры, пять объектов типов 1, 2, 3, -1 и -2 и HUD с камерой
+│   ├── Scene3D.cpp             3D-сцена: камера с клавиатуры, шесть объектов (шар, два куба, капсула, Mandelbulb, губка Менгера) и HUD с камерой
 │   ├── Scene2D.h
 │   └── Scene2D.cpp             2D-сцена: все фигуры с анимацией, текст и игрок на WASD
 ├── files/                    Файлы для программы, при сборке копируются в files/ рядом с ней
@@ -1124,10 +1259,11 @@ smgc/
 
 ## Лицензия
 
-[MIT](LICENSE) © 2026 Artem1123234232
+[MIT](LICENSE) © 2026 s1m-ila
 
 Сторонние файлы распространяются под своими лицензиями:
 
 - `files/DejaVuSans.ttf` — шрифт DejaVu Sans, лицензия Bitstream Vera / Arev в `files/DejaVuSans.LICENSE`;
 - `third_party/stb/stb_truetype.h` — MIT или public domain на выбор, текст лицензии в конце файла;
 - `third_party/glad` — сгенерированный загрузчик glad.
+````

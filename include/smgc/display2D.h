@@ -13,13 +13,11 @@
 #include <glm/glm.hpp>
 
 #include "Layer2D.h"
-
 #include "paletts.h"
-
 #include "taskDefinitions.h"
 #include "taskDefinitions2D.h"
-
 #include "KeySubscription.h"
+#include "Mouse.h"
 
 class SMGC2D: public BaseComponent
 {
@@ -41,6 +39,7 @@ public:
     int subscribeKey(int componentIdx, int key);
     int unsubscribeKey(int componentIdx, int key);
     void sendKeyStates();
+    int measureText(const std::string& text, float size, float* width, float* height);
     int draw();
     int processTask(std::unique_ptr<BaseTask> task) override;
     int tick(long long tickCounter) override;
@@ -58,4 +57,6 @@ private:
 
     int windowWidth  = 800;
     int windowHeight = 800;
+
+    Mouse mouse{};
 };

@@ -44,3 +44,9 @@ task_SmgcSetFont::task_SmgcSetFont(const std::string& t_path): BaseTask(19), pat
 bool taskIs_SmgcSetFont(uint32_t taskIdx) {
     return taskIdx == 19;
 }
+
+task_SmgcMeasureText::task_SmgcMeasureText(const std::string& t_text, float t_size, float* t_width, float* t_height)
+    : BaseTask(21), text(t_text), size(t_size), width(t_width), height(t_height) {}
+bool taskIs_SmgcMeasureText(uint32_t taskIdx) {
+    return taskIdx == 21;
+}

@@ -34,6 +34,34 @@ int SMGC2D::init() {
 
     glfwSetWindowUserPointer(window, this);
 
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* w, int button, int action, int mods) {
+        auto* self = static_cast<SMGC2D*>(glfwGetWindowUserPointer(w));
+        if (!self) return;
+
+        // порядок: 0 = ЛКМ, 1 = колесо, 2 = ПКМ
+        int idx = -1;
+        if      (button == GLFW_MOUSE_BUTTON_LEFT)  idx = 0;
+        else if (button == GLFW_MOUSE_BUTTON_RIGHT) idx = 2;
+        // GLFW_MOUSE_BUTTON_MIDDLE (колесо) можно тоже поддержать:
+        else if (button == GLFW_MOUSE_BUTTON_MIDDLE) idx = 1;
+
+        if (idx < 0) return;
+
+        if (action == GLFW_PRESS) {
+            self->mouse.state[idx]   = 1.0f;
+            self->mouse.press[idx]   = 1.0f;   // нажатие в этом тике
+        } else if (action == GLFW_RELEASE) {
+            self->mouse.state[idx]   = 0.0f;
+            self->mouse.release[idx] = 1.0f;   // отпускание в этом тике
+        }
+    });
+
+    glfwSetScrollCallback(window, [](GLFWwindow* w, double /*xoffset*/, double yoffset) {
+        auto* self = static_cast<SMGC2D*>(glfwGetWindowUserPointer(w));
+        if (!self) return;
+        self->mouse.wheelMove += static_cast<float>(yoffset);
+    });
+
     glfwSetFramebufferSizeCallback(window, [](GLFWwindow* w, int fbW, int fbH) {
         auto* self = static_cast<SMGC2D*>(glfwGetWindowUserPointer(w));
         if (!self) return;
@@ -147,6 +175,18 @@ void SMGC2D::sendKeyStates() {
     }
 }
 
+int SMGC2D::measureText(const std::string& text, float size, float* width, float* height) {
+    if (!IsNonNegative(size)) return invalidArgument("measureText", "size", size);
+    if (!width || !height) {
+        std::cerr << getPrefix() << "Error in SMGC2D::measureText: null pointer\n";
+        return -EINVAL;
+    }
+    const TextMetrics m = layer.measureText(text, size);
+    *width  = m.width;
+    *height = m.height;
+    return 0;
+}
+
 int SMGC2D::draw() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -198,22 +238,47 @@ int SMGC2D::processTask(std::unique_ptr<BaseTask> task) {
     } else if (taskIs_SmgcUnsubscribeKey(taskIdx)) {
         auto* typed = static_cast<task_SmgcUnsubscribeKey*>(task.get());
         return unsubscribeKey(task->getCreatorIdx(), typed->key);
+    } else if (taskIs_SmgcGetWindowSize(taskIdx)) {
+        auto* typed = static_cast<task_SmgcGetWindowSize*>(task.get());
+        *typed->width = windowWidth;
+        *typed->height = windowHeight;
+        return 0;
+    } else if (taskIs_SmgcGetMouse(taskIdx)) {
+        auto* typed = static_cast<task_SmgcGetMouse*>(task.get());
+        *typed->mouse = mouse;
+        return 0;
+    } else if (taskIs_SmgcMeasureText(taskIdx)) {
+        auto* typed = static_cast<task_SmgcMeasureText*>(task.get());
+        return measureText(typed->text, typed->size, typed->width, typed->height);
     }
     return 0;
 }
 
 int SMGC2D::tick(long long tickCounter) {
-    if (glfwWindowShouldClose(window)) {
-        Core_stop();
-    } else {
-        sendKeyStates();
+    // сброс однократных событий предыдущего кадра
+    mouse.press   = glm::vec3(0.0f);
+    mouse.release = glm::vec3(0.0f);
+    mouse.wheelMove     = 0.0f;
 
-        int errorCode = draw();
-        if (errorCode != 0) return errorCode;
+    glfwPollEvents();   // <-- накопление Press/Release/wheel для ЭТОГО тика
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
+    if (glfwWindowShouldClose(window)) { Core_stop(); return 0; }
+
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    if (x < 0.0f || y < 0.0f || x > windowWidth || y > windowHeight) x = 0.0f, y = 0.0f;
+    mouse.pos = glm::vec2(x, y);
+
+    mouse.state[0] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)   == GLFW_PRESS) ? 1.f : 0.f;
+    mouse.state[1] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) ? 1.f : 0.f;
+    mouse.state[2] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT)  == GLFW_PRESS) ? 1.f : 0.f;
+
+    sendKeyStates();
+
+    int errorCode = draw();
+    if (errorCode != 0) return errorCode;
+
+    glfwSwapBuffers(window);
     return 0;
 }
 

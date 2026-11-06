@@ -84,6 +84,48 @@ static uint32_t NextCodepoint(const std::string& text, size_t& i) {
     return codepoint;
 }
 
+static float MeasureLineWidth(const Font& font, const std::vector<const Glyph*>& line, float scale) {
+    float width = 0.0f;
+    for (size_t k = 0; k < line.size(); k++) {
+        if (k > 0) width += font.Kerning(*line[k - 1], *line[k]);
+        width += line[k]->advance;
+    }
+    return width * scale;
+}
+
+TextMetrics MeasureText2D(const Font& font, const std::string& text, float size) {
+    TextMetrics m{};
+    if (!font.IsLoaded() || text.empty()) return m;
+
+    const float scale = size / font.BakeSize();
+    const Glyph* fallback = font.FindGlyph('?');
+
+    std::vector<const Glyph*> line;
+    size_t i = 0;
+    int lineCount = 0;
+    float maxWidth = 0.0f;
+
+    while (true) {
+        line.clear();
+        while (i < text.size() && text[i] != '\n') {
+            const uint32_t codepoint = NextCodepoint(text, i);
+            if (codepoint == '\r') continue;
+            const Glyph* glyph = font.FindGlyph(codepoint);
+            if (!glyph) glyph = fallback;
+            if (glyph) line.push_back(glyph);
+        }
+        maxWidth = std::max(maxWidth, MeasureLineWidth(font, line, scale));
+        lineCount++;
+        if (i >= text.size()) break;
+        i++;
+    }
+
+    m.width  = maxWidth;
+    m.height = font.LineHeight() * scale * float(lineCount);
+    m.ascent = font.Ascent() * scale;
+    return m;
+}
+
 static void TextLine2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const Font& font, const std::vector<const Glyph*>& line, float x, float baseline, float scale, const glm::vec4& color, const glm::vec4& params, TextAlign align) {
     float width = 0.0f;
     for (size_t k = 0; k < line.size(); k++) {

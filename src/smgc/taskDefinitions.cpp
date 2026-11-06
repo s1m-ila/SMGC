@@ -51,3 +51,23 @@ task_SmgcSetShadows::task_SmgcSetShadows(bool t_enabled): BaseTask(9), enabled(t
 bool taskIs_SmgcSetShadows(uint32_t taskIdx) {
     return taskIdx == 9;
 }
+
+task_SmgcGetWindowSize::task_SmgcGetWindowSize(int* t_width, int* t_height): BaseTask(10), width(t_width), height(t_height) {}
+bool taskIs_SmgcGetWindowSize(uint32_t taskIdx) {
+    return taskIdx == 10;
+}
+
+task_SmgcGetMouse::task_SmgcGetMouse(Mouse* t_mouse): BaseTask(20), mouse(t_mouse) {}
+bool taskIs_SmgcGetMouse(uint32_t taskIdx) {
+    return taskIdx == 20;
+}
+
+class task_SmgcMeasureText: public BaseTask {
+public:
+    task_SmgcMeasureText(const std::string& t_text, float t_size, float* t_width, float* t_height);
+    std::string text{};
+    float size = 0.0f;
+    float* width  = nullptr;
+    float* height = nullptr;
+};
+bool taskIs_SmgcMeasureText(uint32_t taskIdx);

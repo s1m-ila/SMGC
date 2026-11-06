@@ -92,3 +92,13 @@ public:
     std::string path{};
 };
 bool taskIs_SmgcSetFont(uint32_t taskIdx);
+
+class task_SmgcMeasureText: public BaseTask {
+public:
+    task_SmgcMeasureText(const std::string& t_text, float t_size, float* t_width, float* t_height);
+    std::string text{};
+    float size = 0.0f;
+    float* width  = nullptr;
+    float* height = nullptr;
+};
+bool taskIs_SmgcMeasureText(uint32_t taskIdx);

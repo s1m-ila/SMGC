@@ -25,6 +25,7 @@ public:
     void pushRoundedRect(const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color);
     void pushRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color);
     void pushLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color);
+    TextMetrics measureText(const std::string& text, float size) const;
     void pushText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align);
     int setFont(const std::string& path);
     void draw(int width, int height, bool outline);

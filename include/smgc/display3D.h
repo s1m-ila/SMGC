@@ -42,8 +42,8 @@
 #include "ObjectsGenerator.h"
 
 #include "Camera.h"
-
 #include "KeySubscription.h"
+#include "Mouse.h"
 
 class SMGC: public BaseComponent
 {
@@ -63,6 +63,7 @@ public:
     int subscribeKey(int componentIdx, int key);
     int unsubscribeKey(int componentIdx, int key);
     void sendKeyStates();
+    int measureText(const std::string& text, float size, float* width, float* height);
     int draw();
     int processTask(std::unique_ptr<BaseTask> task) override;
     int tick(long long tickCounter) override;
@@ -101,4 +102,6 @@ private:
 
     int windowWidth  = 800;
     int windowHeight = 800;
+
+    Mouse mouse{};
 };

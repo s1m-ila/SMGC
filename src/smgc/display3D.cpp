@@ -1,3 +1,4 @@
+#include "smgc/taskDefinitions.h"
 #include <smgc/display3D.h>
 
 // Core class
@@ -30,6 +31,34 @@ int SMGC::init() {
 
 
     glfwSetWindowUserPointer(window, this);  // привязываем this к окну
+
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* w, int button, int action, int mods) {
+        auto* self = static_cast<SMGC*>(glfwGetWindowUserPointer(w));
+        if (!self) return;
+
+        // порядок: 0 = ЛКМ, 1 = колесо, 2 = ПКМ
+        int idx = -1;
+        if      (button == GLFW_MOUSE_BUTTON_LEFT)  idx = 0;
+        else if (button == GLFW_MOUSE_BUTTON_RIGHT) idx = 2;
+        // GLFW_MOUSE_BUTTON_MIDDLE (колесо) можно тоже поддержать:
+        else if (button == GLFW_MOUSE_BUTTON_MIDDLE) idx = 1;
+
+        if (idx < 0) return;
+
+        if (action == GLFW_PRESS) {
+            self->mouse.state[idx]   = 1.0f;
+            self->mouse.press[idx]   = 1.0f;   // нажатие в этом тике
+        } else if (action == GLFW_RELEASE) {
+            self->mouse.state[idx]   = 0.0f;
+            self->mouse.release[idx] = 1.0f;   // отпускание в этом тике
+        }
+    });
+
+    glfwSetScrollCallback(window, [](GLFWwindow* w, double /*xoffset*/, double yoffset) {
+        auto* self = static_cast<SMGC*>(glfwGetWindowUserPointer(w));
+        if (!self) return;
+        self->mouse.wheelMove += static_cast<float>(yoffset);
+    });
 
     glfwSetFramebufferSizeCallback(window, [](GLFWwindow* w, int fbW, int fbH) {
         auto* self = static_cast<SMGC*>(glfwGetWindowUserPointer(w));
@@ -190,6 +219,21 @@ void SMGC::sendKeyStates() {
     }
 }
 
+int SMGC::measureText(const std::string& text, float size, float* width, float* height) {
+    if (!std::isfinite(size) || size < 0.0f) {
+        std::cerr << getPrefix() << "Error in SMGC::measureText: invalid size " << std::to_string(size) << std::endl;
+        return -EINVAL;
+    }
+    if (!width || !height) {
+        std::cerr << getPrefix() << "Error in SMGC::measureText: null pointer" << std::endl;
+        return -EINVAL;
+    }
+    const TextMetrics m = overlay.measureText(text, size);
+    *width  = m.width;
+    *height = m.height;
+    return 0;
+}
+
 int SMGC::draw() {
     //glClearColor(1.0f, 0.2f, 0.2f, 1.0f);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -254,7 +298,7 @@ int SMGC::draw() {
 }
 
 int SMGC::processTask(std::unique_ptr<BaseTask> task) {
-    uint32_t taskIdx = task->getIdx();
+    uint32_t taskIdx = task->getIdx(); 
     if (taskIs_SmgcSwapObjects(taskIdx)) {
         swapObjects();
     } else if (taskIs_SmgcClearObjects(taskIdx)) {
@@ -287,27 +331,55 @@ int SMGC::processTask(std::unique_ptr<BaseTask> task) {
     } else if (taskIs_SmgcUnsubscribeKey(taskIdx)) {
         auto* typed = static_cast<task_SmgcUnsubscribeKey*>(task.get());
         return unsubscribeKey(task->getCreatorIdx(), typed->key);
-    }
+    } else if (taskIs_SmgcGetWindowSize(taskIdx)) {
+        auto* typed = static_cast<task_SmgcGetWindowSize*>(task.get());
+        *typed->width = windowWidth;
+        *typed->height = windowHeight;
+        return 0;
+    } else if (taskIs_SmgcGetMouse(taskIdx)) {
+        auto* typed = static_cast<task_SmgcGetMouse*>(task.get());
+        *typed->mouse = mouse;
+        return 0;
+    } else if (taskIs_SmgcMeasureText(taskIdx)) {
+    auto* typed = static_cast<task_SmgcMeasureText*>(task.get());
+    return measureText(typed->text, typed->size, typed->width, typed->height);
+}
     return 0;
 }
 
 int SMGC::tick(long long tickCounter) {
     localTickCounter = tickCounter;
-    if (glfwWindowShouldClose(window)) {
-        Core_stop();
-    } else {
-        //camera.pos = {0.0f, 0.0f, sin(float(localTickCounter) / float(Core_getTPS())) * 5.0f};
-        sendKeyStates();
 
-        if (Core_isDebugModeEnabled()) std::clog << getPrefix() << "camera.pos: " << std::to_string(camera.pos.x) << ";" << std::to_string(camera.pos.y) << ";" << std::to_string(camera.pos.z) << std::endl;
-        if (Core_isDebugModeEnabled()) std::clog << getPrefix() << "camera.rot: " << std::to_string(camera.rot.x) << ";" << std::to_string(camera.rot.y) << ";" << std::to_string(camera.rot.z) << std::endl;
-        
-        int errorCode = draw();
-        if (errorCode != 0) return errorCode;
+    // сброс однократных событий предыдущего кадра
+    mouse.press   = glm::vec3(0.0f);
+    mouse.release = glm::vec3(0.0f);
+    mouse.wheelMove     = 0.0f;
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
+    glfwPollEvents();   // <-- накопление Press/Release/wheel для ЭТОГО тика
+
+    if (glfwWindowShouldClose(window)) { Core_stop(); return 0; }
+
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    if (x < 0.0f || y < 0.0f) x = 0.0f; y = 0.0f;
+    if (x > windowWidth || y > windowHeight) x = windowWidth; y = windowHeight;
+    mouse.pos = glm::vec2(x, y);
+
+    mouse.state[0] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)   == GLFW_PRESS) ? 1.f : 0.f;
+    mouse.state[1] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) ? 1.f : 0.f;
+    mouse.state[2] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT)  == GLFW_PRESS) ? 1.f : 0.f;
+
+    sendKeyStates();
+
+    if (Core_isDebugModeEnabled()) std::clog << getPrefix() << "camera.pos: " << std::to_string(camera.pos.x) << ";" << std::to_string(camera.pos.y) << ";" << std::to_string(camera.pos.z) << std::endl;
+    if (Core_isDebugModeEnabled()) std::clog << getPrefix() << "camera.rot: " << std::to_string(camera.rot.x) << ";" << std::to_string(camera.rot.y) << ";" << std::to_string(camera.rot.z) << std::endl;
+
+    int errorCode = draw();
+    if (errorCode != 0) return errorCode;
+
+    glfwSwapBuffers(window);
+
+    glfwSwapBuffers(window);
     return 0;
 }
 

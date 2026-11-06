@@ -11,6 +11,9 @@
 // For unique_ptr
 #include <memory>
 
+// Mouse
+#include "Mouse.h"
+
 class task_SmgcSwapObjects: public BaseTask {
 public:
     task_SmgcSwapObjects();
@@ -80,3 +83,19 @@ public:
     bool enabled = true;
 };
 bool taskIs_SmgcSetShadows(uint32_t taskIdx);
+
+
+class task_SmgcGetWindowSize: public BaseTask {
+public:
+    task_SmgcGetWindowSize(int* t_width, int* t_height);
+    int* width;
+    int* height;
+};
+bool taskIs_SmgcGetWindowSize(uint32_t taskIdx);
+
+class task_SmgcGetMouse : public BaseTask {
+public:
+    explicit task_SmgcGetMouse(Mouse* t_mouse);
+    Mouse* mouse = nullptr;
+};
+bool taskIs_SmgcGetMouse(uint32_t taskIdx);

@@ -69,6 +69,9 @@ void Layer2D::pushRing(const glm::vec2& center, float radius, float thickness, c
 void Layer2D::pushLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color) {
     Line2D(Vertices_B, Indices_B, a, b, thickness, color);
 }
+TextMetrics Layer2D::measureText(const std::string& text, float size) const {
+    return MeasureText2D(font, text, size);
+}
 void Layer2D::pushText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align) {
     Text2D(Vertices_B, Indices_B, font, text, pos, size, color, align);
 }
