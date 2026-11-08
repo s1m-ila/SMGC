@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "Font.h"
@@ -160,9 +161,11 @@ bool taskIs_SmgcMergeTextures(uint32_t taskIdx);
 class task_SmgcDrawTexture: public BaseTask {
 public:
     task_SmgcDrawTexture(uint32_t t_id, const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color = glm::vec4{1.0f});
+    task_SmgcDrawTexture(uint32_t t_id, const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color, const glm::vec4& t_srcRect);
     uint32_t id = kInvalidTexture;
     glm::vec2 pos{};
     glm::vec2 size{};
     glm::vec4 color{1.0f};
+    std::optional<glm::vec4> srcRect = std::nullopt;
 };
 bool taskIs_SmgcDrawTexture(uint32_t taskIdx);

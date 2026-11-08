@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <glad/glad.h>
@@ -35,7 +36,7 @@ public:
     int drawRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color);
     int drawLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color);
     int drawText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align);
-    int drawTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color);
+    int drawTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color, const std::optional<glm::vec4>& srcRect = std::nullopt);
     int loadTexture(const std::string& path, uint32_t* id);
     int freeTexture(uint32_t id);
     int getTextureSize(uint32_t id, int* width, int* height);

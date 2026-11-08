@@ -48,66 +48,90 @@ void Layer2D::swap() {
     std::swap(Vertices_A, Vertices_B);
     std::swap(Indices_A, Indices_B);
     std::swap(Batches_A, Batches_B);
+    textures.NextFrame();
 
     vao->Unbind();
     vbo->Upload(Vertices_A.data(), sizeof(Vertex2D) * Vertices_A.size());
     ebo->Upload(Indices_A);
 }
 
-void Layer2D::track(uint32_t texture, size_t indexStart) {
+void Layer2D::track(uint32_t texture, uint32_t variant, size_t indexStart) {
     const size_t count = Indices_B.size() - indexStart;
     if (count == 0) return;
     if (!Batches_B.empty()) {
         DrawBatch& last = Batches_B.back();
-        if (last.texture == texture && last.indexStart + last.indexCount == indexStart) {
+        if (last.texture == texture && last.variant == variant && last.indexStart + last.indexCount == indexStart) {
             last.indexCount += count;
             return;
         }
     }
-    Batches_B.push_back({texture, indexStart, count});
+    Batches_B.push_back({texture, variant, indexStart, count});
 }
 
 void Layer2D::pushRect(const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     Rect2D(Vertices_B, Indices_B, pos, size, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 void Layer2D::pushTriangle(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     Triangle2D(Vertices_B, Indices_B, a, b, c, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 void Layer2D::pushCircle(const glm::vec2& center, float radius, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     Circle2D(Vertices_B, Indices_B, center, radius, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 void Layer2D::pushEllipse(const glm::vec2& center, const glm::vec2& radii, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     Ellipse2D(Vertices_B, Indices_B, center, radii, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 void Layer2D::pushRoundedRect(const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     RoundedRect2D(Vertices_B, Indices_B, pos, size, cornerRadius, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 void Layer2D::pushRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     Ring2D(Vertices_B, Indices_B, center, radius, thickness, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 void Layer2D::pushLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color) {
     const size_t start = Indices_B.size();
     Line2D(Vertices_B, Indices_B, a, b, thickness, color);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
-void Layer2D::pushTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+void Layer2D::pushTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color, const std::optional<glm::vec4>& srcRect) {
     const size_t start = Indices_B.size();
-    if (textures.Exists(id)) {
-        Texture2D(Vertices_B, Indices_B, pos, size, color);
-        track(id, start);
-        return;
+
+    int textureWidth = 0, textureHeight = 0;
+    if (textures.GetSize(id, &textureWidth, &textureHeight)) {
+        const glm::vec2 textureSize{float(textureWidth), float(textureHeight)};
+        glm::vec2 srcMin(0.0f);
+        glm::vec2 srcMax = textureSize;
+        if (srcRect) {
+            srcMin = glm::vec2(srcRect->x, srcRect->y);
+            srcMax = srcMin + glm::vec2(srcRect->z, srcRect->w);
+        }
+        const glm::vec2 srcSize = srcMax - srcMin;
+        const glm::vec2 clippedMin = glm::max(srcMin, glm::vec2(0.0f));
+        const glm::vec2 clippedMax = glm::min(srcMax, textureSize);
+        if (!(srcSize.x > 0.0f && srcSize.y > 0.0f && clippedMax.x > clippedMin.x && clippedMax.y > clippedMin.y)) return;
+
+        const glm::vec2 scale = size / srcSize;
+        uint32_t variant = 0;
+        if (textures.Acquire(id, scale, &variant)) {
+            Texture2D(Vertices_B, Indices_B,
+                      pos + (clippedMin - srcMin) * scale,
+                      (clippedMax - clippedMin) * scale,
+                      clippedMin / textureSize,
+                      clippedMax / textureSize,
+                      color);
+            track(id, variant, start);
+            return;
+        }
     }
 
     const glm::vec4 darkGray{0.25f, 0.25f, 0.25f, 1.0f};
@@ -118,7 +142,7 @@ void Layer2D::pushTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& si
     Rect2D(Vertices_B, Indices_B, pos + kNoneFrameThickness, innerSize, white);
     Line2D(Vertices_B, Indices_B, pos + kNoneIndent, pos + size - kNoneIndent, kNoneLineThickness, red);
     Line2D(Vertices_B, Indices_B, pos + glm::vec2{kNoneIndent, size.y - kNoneIndent}, pos + glm::vec2{size.x - kNoneIndent, kNoneIndent}, kNoneLineThickness, red);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 TextMetrics Layer2D::measureText(const std::string& text, float size) const {
     return MeasureText2D(font, text, size);
@@ -126,7 +150,7 @@ TextMetrics Layer2D::measureText(const std::string& text, float size) const {
 void Layer2D::pushText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align) {
     const size_t start = Indices_B.size();
     Text2D(Vertices_B, Indices_B, font, text, pos, size, color, align);
-    track(kInvalidTexture, start);
+    track(kInvalidTexture, 0, start);
 }
 
 int Layer2D::setFont(const std::string& path) {
@@ -157,7 +181,7 @@ void Layer2D::draw(int width, int height, bool outline) {
     shaderProgram->setFloat("iOutline", 0.0f);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     for (const auto& batch : Batches_A) {
-        if (batch.texture != kInvalidTexture && !textures.Bind(batch.texture, 1)) continue;
+        if (batch.texture != kInvalidTexture && !textures.Bind(batch.texture, batch.variant, 1)) continue;
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(batch.indexCount), GL_UNSIGNED_INT, reinterpret_cast<const void*>(batch.indexStart * sizeof(GLuint)));
     }
     glActiveTexture(GL_TEXTURE0);

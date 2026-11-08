@@ -43,6 +43,20 @@ if(NOT TARGET smpb::core)
   FetchContent_MakeAvailable(smpb)
 endif()
 
+# --- lunasvg ---
+if(NOT TARGET lunasvg::lunasvg)
+  find_package(lunasvg 3 QUIET)
+endif()
+if(NOT TARGET lunasvg::lunasvg)
+  include(FetchContent)
+  set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(lunasvg
+    GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
+    GIT_TAG        v3.0.1
+  )
+  FetchContent_MakeAvailable(lunasvg)
+endif()
+
 # --- smgc::common ---
 add_library(smgc_common STATIC
   src/smgc/shaderClass.cpp
@@ -77,6 +91,7 @@ target_link_libraries(smgc_common
     glm::glm
   PRIVATE
     OpenGL::GL
+    lunasvg::lunasvg
 )
 
 # --- smgc::display3D ---

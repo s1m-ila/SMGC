@@ -22,6 +22,7 @@ int SMGC2D::init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     window = glfwCreateWindow(windowWidth, windowHeight, "SMGC2D", NULL, NULL);
     if (!window) {
@@ -74,6 +75,7 @@ int SMGC2D::init() {
     if (errorCode == 0) {std::cerr << getPrefix() << "Critical Error: gladLoadGL failed, return code " << std::to_string(errorCode) << std::endl; return -ENODEV;}
     std::clog << getPrefix() << "GL: " << glGetString(GL_VERSION) << "\n";
 
+    glEnable(GL_MULTISAMPLE);
     glViewport(0, 0, windowWidth, windowHeight);
 
     errorCode = layer.init();
@@ -146,10 +148,16 @@ int SMGC2D::drawText(const std::string& text, const glm::vec2& pos, float size, 
     layer.pushText(text, pos, size, color, align);
     return 0;
 }
-int SMGC2D::drawTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+int SMGC2D::drawTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color, const std::optional<glm::vec4>& srcRect) {
     if (!IsNonNegative(size.x)) return invalidArgument("drawTexture", "size.x", size.x);
     if (!IsNonNegative(size.y)) return invalidArgument("drawTexture", "size.y", size.y);
-    layer.pushTexture(id, pos, size, color);
+    if (srcRect) {
+        if (!std::isfinite(srcRect->x)) return invalidArgument("drawTexture", "srcRect.x", srcRect->x);
+        if (!std::isfinite(srcRect->y)) return invalidArgument("drawTexture", "srcRect.y", srcRect->y);
+        if (!IsNonNegative(srcRect->z)) return invalidArgument("drawTexture", "srcRect.width", srcRect->z);
+        if (!IsNonNegative(srcRect->w)) return invalidArgument("drawTexture", "srcRect.height", srcRect->w);
+    }
+    layer.pushTexture(id, pos, size, color, srcRect);
     return 0;
 }
 int SMGC2D::loadTexture(const std::string& path, uint32_t* id) {
@@ -272,7 +280,7 @@ int SMGC2D::processTask(std::unique_ptr<BaseTask> task) {
         return drawText(typed->text, typed->pos, typed->size, typed->color, typed->align);
     } else if (taskIs_SmgcDrawTexture(taskIdx)) {
         auto* typed = static_cast<task_SmgcDrawTexture*>(task.get());
-        return drawTexture(typed->id, typed->pos, typed->size, typed->color);
+        return drawTexture(typed->id, typed->pos, typed->size, typed->color, typed->srcRect);
     } else if (taskIs_SmgcLoadTexture(taskIdx)) {
         auto* typed = static_cast<task_SmgcLoadTexture*>(task.get());
         return loadTexture(typed->path, typed->id);

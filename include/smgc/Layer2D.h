@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@
 
 struct DrawBatch {
     uint32_t texture;
+    uint32_t variant;
     size_t indexStart;
     size_t indexCount;
 };
@@ -33,7 +35,7 @@ public:
     void pushRoundedRect(const glm::vec2& pos, const glm::vec2& size, float cornerRadius, const glm::vec4& color);
     void pushRing(const glm::vec2& center, float radius, float thickness, const glm::vec4& color);
     void pushLine(const glm::vec2& a, const glm::vec2& b, float thickness, const glm::vec4& color);
-    void pushTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color);
+    void pushTexture(uint32_t id, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color, const std::optional<glm::vec4>& srcRect = std::nullopt);
     TextMetrics measureText(const std::string& text, float size) const;
     void pushText(const std::string& text, const glm::vec2& pos, float size, const glm::vec4& color, TextAlign align);
     int setFont(const std::string& path);
@@ -41,7 +43,7 @@ public:
     void draw(int width, int height, bool outline);
     void destroy();
 private:
-    void track(uint32_t texture, size_t indexStart);
+    void track(uint32_t texture, uint32_t variant, size_t indexStart);
 
     std::unique_ptr<Shader> shaderProgram = nullptr;
 

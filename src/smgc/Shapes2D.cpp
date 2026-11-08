@@ -71,14 +71,14 @@ void Line2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const
     }, a, color, glm::vec4(ab, halfThickness, 0.0f), Shape2D::Line);
 }
 
-void Texture2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const glm::vec2& pos, const glm::vec2& size, const glm::vec4& color) {
+void Texture2D(std::vector<Vertex2D>& vertices, std::vector<GLuint>& indices, const glm::vec2& pos, const glm::vec2& size, const glm::vec2& uvMin, const glm::vec2& uvMax, const glm::vec4& color) {
     const GLuint base = static_cast<GLuint>(vertices.size());
     const GLint shape = static_cast<GLint>(Shape2D::Texture);
     const glm::vec4 params(0.0f);
-    vertices.push_back({pos,                                   {0.0f, 0.0f}, color, params, shape});
-    vertices.push_back({pos + glm::vec2(size.x, 0.0f),         {1.0f, 0.0f}, color, params, shape});
-    vertices.push_back({pos + size,                            {1.0f, 1.0f}, color, params, shape});
-    vertices.push_back({pos + glm::vec2(0.0f, size.y),         {0.0f, 1.0f}, color, params, shape});
+    vertices.push_back({pos,                                   {uvMin.x, uvMin.y}, color, params, shape});
+    vertices.push_back({pos + glm::vec2(size.x, 0.0f),         {uvMax.x, uvMin.y}, color, params, shape});
+    vertices.push_back({pos + size,                            {uvMax.x, uvMax.y}, color, params, shape});
+    vertices.push_back({pos + glm::vec2(0.0f, size.y),         {uvMin.x, uvMax.y}, color, params, shape});
     indices.insert(indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
 }
 

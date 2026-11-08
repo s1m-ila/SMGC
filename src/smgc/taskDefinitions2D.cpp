@@ -82,6 +82,7 @@ bool taskIs_SmgcMergeTextures(uint32_t taskIdx) {
 }
 
 task_SmgcDrawTexture::task_SmgcDrawTexture(uint32_t t_id, const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color): BaseTask(28), id(t_id), pos(t_pos), size(t_size), color(t_color) {}
+task_SmgcDrawTexture::task_SmgcDrawTexture(uint32_t t_id, const glm::vec2& t_pos, const glm::vec2& t_size, const glm::vec4& t_color, const glm::vec4& t_srcRect): BaseTask(28), id(t_id), pos(t_pos), size(t_size), color(t_color), srcRect(t_srcRect) {}
 bool taskIs_SmgcDrawTexture(uint32_t taskIdx) {
     return taskIdx == 28;
 }
