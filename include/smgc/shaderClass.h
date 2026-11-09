@@ -2,10 +2,11 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <glad/glad.h>
 
 // For console output
 #include <iostream>
+#include <string>
+#include <unordered_map>
 
 // For read files
 #include <smpb/tools.h>
@@ -27,4 +28,6 @@ public:
     void setVec2(const char* name, glm::vec2 v);
 private:
     int status;
+    std::unordered_map<std::string, GLint> uniformLocations;
+    GLint getUniformLocation(const char* name);
 };

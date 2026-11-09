@@ -294,7 +294,19 @@ bool TextureStore::Acquire(uint32_t id, const glm::vec2& scale, uint32_t* varian
     raster.width = width;
     raster.height = height;
     raster.lastUsed = generation;
-    UploadTexture(raster.glId, width, height, bitmap.data(), GL_LINEAR);
+
+    const unsigned char* uploadData = bitmap.data();
+    std::vector<unsigned char> packedPixels;
+    if (bitmap.stride() != static_cast<std::size_t>(width * 4)) {
+        packedPixels.resize(size_t(width) * size_t(height) * 4);
+        for (int y = 0; y < height; y++) {
+            std::memcpy(&packedPixels[size_t(y) * size_t(width) * 4],
+                        bitmap.data() + size_t(y) * size_t(bitmap.stride()),
+                        size_t(width) * 4);
+        }
+        uploadData = packedPixels.data();
+    }
+    UploadTexture(raster.glId, width, height, uploadData, GL_LINEAR);
 
     entry->rasters.push_back(raster);
     rasterBytes += size_t(width) * size_t(height) * 4;

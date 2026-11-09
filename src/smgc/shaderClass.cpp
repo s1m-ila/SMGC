@@ -25,6 +25,7 @@ static bool checkProgram(GLuint prog) {
 }
 
 Shader::Shader(const char* vertexFile, const char* fragmentFile) {
+    ID = 0;
     status = 0;
     
     auto [vertexCode, errorCode1] = readFile_S(vertexFile);
@@ -71,7 +72,11 @@ void Shader::Activate() {
 }
 
 void Shader::Delete() {
-    glDeleteProgram(ID);
+    if (ID != 0) {
+        glDeleteProgram(ID);
+        ID = 0;
+    }
+    uniformLocations.clear();
 }
 
 int Shader::getStatus() {
@@ -79,67 +84,38 @@ int Shader::getStatus() {
     return status;
 }
 
-void Shader::setVec3(const char* name, float x, float y, float z) {
-    GLint loc = glGetUniformLocation(ID, name);
-    if (loc == -1) {
-        //std::cerr << "Error in Shader::setVec2: Uniform " << name << " not found\n";
-        return;
+GLint Shader::getUniformLocation(const char* name) {
+    auto it = uniformLocations.find(name);
+    if (it != uniformLocations.end()) {
+        return it->second;
     }
-    GLint prev = 0;
-    glGetIntegerv(GL_CURRENT_PROGRAM, &prev);
-    if (prev != (GLint)ID) glUseProgram(ID);
+    GLint loc = glGetUniformLocation(ID, name);
+    uniformLocations.emplace(name, loc);
+    return loc;
+}
 
-    glUniform3f(loc, x, y, z);
+void Shader::setVec3(const char* name, float x, float y, float z) {
+    GLint loc = getUniformLocation(name);
+    if (loc == -1) return;
+    glProgramUniform3f(ID, loc, x, y, z);
 }
 
 void Shader::setVec2(const char* name, float x, float y) {
-    GLint loc = glGetUniformLocation(ID, name);
-    if (loc == -1) {
-        //std::cerr << "Error in Shader::setVec2: Uniform " << name << " not found\n";
-        return;
-    }
-    GLint prev = 0;
-    glGetIntegerv(GL_CURRENT_PROGRAM, &prev);
-    if (prev != (GLint)ID) glUseProgram(ID);
-
-    glUniform2f(loc, x, y);
+    GLint loc = getUniformLocation(name);
+    if (loc == -1) return;
+    glProgramUniform2f(ID, loc, x, y);
 }
 
 void Shader::setFloat(const char* name, float x) {
-    GLint loc = glGetUniformLocation(ID, name);
-    if (loc == -1) {
-        //std::cerr << "Error in Shader::setFloat: Uniform " << name << " not found\n";
-        return;
-    }
-    GLint prev = 0;
-    glGetIntegerv(GL_CURRENT_PROGRAM, &prev);
-    if (prev != (GLint)ID) glUseProgram(ID);
-
-    glUniform1f(loc, x);
+    GLint loc = getUniformLocation(name);
+    if (loc == -1) return;
+    glProgramUniform1f(ID, loc, x);
 }
 
 void Shader::setVec3(const char* name, glm::vec3 v) {
-    GLint loc = glGetUniformLocation(ID, name);
-    if (loc == -1) {
-        //std::cerr << "Error in Shader::setVec2: Uniform " << name << " not found\n";
-        return;
-    }
-    GLint prev = 0;
-    glGetIntegerv(GL_CURRENT_PROGRAM, &prev);
-    if (prev != (GLint)ID) glUseProgram(ID);
-
-    glUniform3f(loc, v.x, v.y, v.z);
+    setVec3(name, v.x, v.y, v.z);
 }
 
 void Shader::setVec2(const char* name, glm::vec2 v) {
-    GLint loc = glGetUniformLocation(ID, name);
-    if (loc == -1) {
-        //std::cerr << "Error in Shader::setVec2: Uniform " << name << " not found\n";
-        return;
-    }
-    GLint prev = 0;
-    glGetIntegerv(GL_CURRENT_PROGRAM, &prev);
-    if (prev != (GLint)ID) glUseProgram(ID);
-
-    glUniform2f(loc, v.x, v.y);
+    setVec2(name, v.x, v.y);
 }

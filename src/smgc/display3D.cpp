@@ -4,6 +4,8 @@
 // Core class
 #include <smpb/Core.h>
 
+#include <algorithm>
+
 SMGC::SMGC() : BaseComponent("SMGC") {
     // Constructor
 }
@@ -359,11 +361,11 @@ int SMGC::tick(long long tickCounter) {
 
     if (glfwWindowShouldClose(window)) { Core_stop(); return 0; }
 
-    double x, y;
+    double x = 0.0, y = 0.0;
     glfwGetCursorPos(window, &x, &y);
-    if (x < 0.0f || y < 0.0f) x = 0.0f; y = 0.0f;
-    if (x > windowWidth || y > windowHeight) x = windowWidth; y = windowHeight;
-    mouse.pos = glm::vec2(x, y);
+    x = std::clamp(x, 0.0, static_cast<double>(windowWidth));
+    y = std::clamp(y, 0.0, static_cast<double>(windowHeight));
+    mouse.pos = glm::vec2(static_cast<float>(x), static_cast<float>(y));
 
     mouse.state[0] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)   == GLFW_PRESS) ? 1.f : 0.f;
     mouse.state[1] = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) ? 1.f : 0.f;
@@ -376,8 +378,6 @@ int SMGC::tick(long long tickCounter) {
 
     int errorCode = draw();
     if (errorCode != 0) return errorCode;
-
-    glfwSwapBuffers(window);
 
     glfwSwapBuffers(window);
     return 0;

@@ -40,7 +40,32 @@ struct BakedGlyph {
 
 Font::Font() = default;
 
-Font::~Font() = default;
+Font::~Font() {
+    Delete();
+}
+
+Font::Font(Font&& other) noexcept
+    : ID(std::exchange(other.ID, 0)),
+      data(std::move(other.data)),
+      info(std::move(other.info)),
+      glyphs(std::move(other.glyphs)),
+      scale(other.scale),
+      ascent(other.ascent),
+      lineHeight(other.lineHeight) {}
+
+Font& Font::operator=(Font&& other) noexcept {
+    if (this != &other) {
+        Delete();
+        ID = std::exchange(other.ID, 0);
+        data = std::move(other.data);
+        info = std::move(other.info);
+        glyphs = std::move(other.glyphs);
+        scale = other.scale;
+        ascent = other.ascent;
+        lineHeight = other.lineHeight;
+    }
+    return *this;
+}
 
 int Font::Load(const std::string& path) {
     std::ifstream file(path, std::ios::binary);

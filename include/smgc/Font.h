@@ -32,6 +32,11 @@ public:
     Font();
     ~Font();
 
+    Font(const Font&) = delete;
+    Font& operator=(const Font&) = delete;
+    Font(Font&& other) noexcept;
+    Font& operator=(Font&& other) noexcept;
+
     int Load(const std::string& path);
     void Bind(GLuint unit) const;
     void Delete();
